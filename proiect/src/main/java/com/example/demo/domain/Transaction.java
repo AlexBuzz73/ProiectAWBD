@@ -36,4 +36,11 @@ public class Transaction {
     @JoinColumn(name = "category_id")
     private Categories category;
 
+    @ManyToOne
+    @JoinColumn(name = "exchange_rate_id")
+    private Exchange_rates exchange_rates;
+
+    @OneToOne(mappedBy = "transaction")
+    private Scheduled_payments scheduled_payments;
+
 }

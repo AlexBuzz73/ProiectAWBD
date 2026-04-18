@@ -33,4 +33,7 @@ public class Users {
     @OneToOne(mappedBy = "users")
     private Individuals individual;
 
+    @OneToOne(mappedBy = "users")
+    private User_Limits user_limits;
+
 }
