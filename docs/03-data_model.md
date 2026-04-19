@@ -1,6 +1,6 @@
 ## 1. Introducere
 
-Modelul de date al aplicatiei a fost construit astfel incat sa sustina functionalitatile principale ale unui sistem de tip Internet Banking destinat persoanelor fizice. Acesta acopera zona de identitate si acces, managementul conturilor si cardurilor, procesarea tranzactiilor, gestionarea limitelor tranzactionale, schimbul valutar si platile programate. Modelul include atat relatii de tip 1:1 si 1:M, cat si o relatie de tip M:M, necesara pentru functionalitatea de multiaccount. Diagrama ERD aferenta modelului de date este disponibila in folderul `docs/diagrams/`.
+Modelul de date al aplicatiei a fost construit astfel incat sa sustina functionalitatile principale ale unui sistem de tip Internet Banking destinat persoanelor fizice. Acesta acopera zona de identitate si acces, managementul conturilor si cardurilor, procesarea tranzactiilor, gestionarea limitelor tranzactionale, schimbul valutar si platile programate. Modelul include atat relatii de tip 1:1 si 1:M, cat si relatii de tip M:M. Relatiile M:M sunt utilizate atat pentru functionalitatea de multiaccount, cat si pentru etichetarea tranzactiilor prin tag-uri auxiliare. Diagrama ERD aferenta modelului de date este disponibila in folderul `docs/diagrams/`.
 
 ## 2. Tabele principale
 
@@ -147,6 +147,7 @@ Observatii:
 - pentru platile externe, `destination_iban` va fi folosit in locul unui cont destinatie din sistem
 - `is_urgent` indica daca tranzactia trebuie executata imediat dupa autorizare
 - `is_scheduled` indica daca tranzactia este asociata unei plati programate
+- o tranzactie poate avea asociate unul sau mai multe tag-uri auxiliare, utilizate pentru organizare si filtrare
 
 ### 2.8 SCHEDULED_PAYMENTS
 
@@ -217,8 +218,42 @@ Coloane principale:
 
 Observatii:
 - cursurile sunt preluate periodic dintr-un API extern pus la dispozitie de BNR
-- tabela este folosita atat pentru schimbul valutar, cat si pentru validarea limitelor tranzactionale in moneda de referinta
+- sistemul va utiliza doar ratele de schimb `USD -> RON` si `EUR -> RON`
+- tabela este folosita pentru furnizarea cursurilor de schimb valutar, utilizate atat in operatiunile de schimb valutar, cat si pentru validarea limitelor tranzactionale in moneda de referinta (RON)
+- pentru tranzactiile de tip schimb valutar, in tabela `TRANSACTIONS` se va salva referinta catre rata utilizata, prin coloana `exchange_rate_id`
+- pentru conversiile in sens invers (`RON -> USD`, `RON -> EUR`), sistemul va utiliza aceeasi rata de baza, aplicand formula inversa in logica aplicatiei
 - pentru aceeasi zi si aceeasi pereche valutara se va impune unicitatea
+
+### 2.12 TAGS
+
+Tabela `TAGS` stocheaza etichete auxiliare utilizate pentru organizarea si filtrarea tranzactiilor.
+
+Coloane principale:
+- `tag_id` - PK
+- `name`
+- `status`
+- `created_at`
+- `updated_at`
+
+Observatii:
+- tag-urile sunt predefinite in sistem
+- acestea nu pot fi create sau modificate de utilizatori
+- un tag poate fi asociat mai multor tranzactii
+- tag-urile sunt utilizate pentru clasificare secundara si filtrare in istoricul tranzactiilor
+
+### 2.13 TRANSACTION_TAGS
+
+Tabela `TRANSACTION_TAGS` implementeaza relatia de tip M:M dintre `TRANSACTIONS` si `TAGS`.
+
+Coloane principale:
+- `transaction_id` - FK catre `TRANSACTIONS`
+- `tag_id` - FK catre `TAGS`
+
+Observatii:
+- o tranzactie poate avea zero, unul sau mai multe tag-uri
+- aceeasi eticheta poate fi asociata mai multor tranzactii
+- tabela este utilizata pentru organizarea suplimentara a tranzactiilor si pentru filtrare in interfata utilizatorului
+
 
 ## 3. Reguli business
 
@@ -233,3 +268,6 @@ Modelul de date reflecta urmatoarele reguli importante de business:
 - toate limitele valorice sunt exprimate in RON
 - pentru tranzactiile in alta valuta, valorile sunt convertite folosind cursul disponibil in sistem
 - categoriile pot fi create de sistem sau create de utilizator
+- o tranzactie poate avea asociate zero, unul sau mai multe tag-uri auxiliare
+- tag-urile sunt predefinite si utilizate pentru clasificare secundara si filtrare
+- tag-urile **nu inlocuiesc categoria principala a tranzactiei**
