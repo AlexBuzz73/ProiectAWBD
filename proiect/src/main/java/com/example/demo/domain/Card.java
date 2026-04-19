@@ -4,25 +4,29 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.util.Date;
-import java.util.List;
 
 @Data
 @Entity
-@Table(name = "tags")
-public class Tag {
+@Table(name = "cards")
+public class Card {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int tagId;
-    private String name;
+    private int cardId;
+    private String cardNumber;
+    private String type;
+    @Temporal(TemporalType.DATE)
+    private Date expirationDate;
+    private String holderName;
     private String status;
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdAt;
     @Temporal(TemporalType.TIMESTAMP)
     private Date updatedAt;
 
-    public Tag() {
+    public Card() {
     }
 
-    @ManyToMany(mappedBy = "tags")
-    private List<Transaction> transactions;
+    @ManyToOne
+    @JoinColumn(name = "account_id")
+    private Account account;
 }

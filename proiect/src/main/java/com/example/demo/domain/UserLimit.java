@@ -1,28 +1,29 @@
 package com.example.demo.domain;
-
 import jakarta.persistence.*;
 import lombok.Data;
 
 import java.util.Date;
-import java.util.List;
 
 @Data
 @Entity
-@Table(name = "tags")
-public class Tag {
+@Table(name = "user_limits")
+public class UserLimit {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int tagId;
-    private String name;
+    private int userLimitId;
+    private int maxAmountPerTransactionRon;
+    private int maxDailyAmountRon;
+    private int maxDailyTransactionsCount;
     private String status;
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdAt;
     @Temporal(TemporalType.TIMESTAMP)
     private Date updatedAt;
 
-    public Tag() {
+    public UserLimit() {
     }
 
-    @ManyToMany(mappedBy = "tags")
-    private List<Transaction> transactions;
+    @OneToOne
+    @JoinColumn(name = "user_id", unique = true)
+    private User user;
 }

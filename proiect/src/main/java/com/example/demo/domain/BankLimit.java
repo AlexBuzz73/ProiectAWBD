@@ -4,25 +4,23 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.util.Date;
-import java.util.List;
 
 @Data
 @Entity
-@Table(name = "tags")
-public class Tag {
+@Table(name = "bank_limits")
+public class BankLimit {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int tagId;
-    private String name;
+    private int bankLimitId;
+    private int maxAmountPerTransactionRon;
+    private int maxDailyAmountRon;
+    private int maxDailyTransactionsCount;
     private String status;
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdAt;
     @Temporal(TemporalType.TIMESTAMP)
     private Date updatedAt;
 
-    public Tag() {
+    public BankLimit() {
     }
-
-    @ManyToMany(mappedBy = "tags")
-    private List<Transaction> transactions;
 }

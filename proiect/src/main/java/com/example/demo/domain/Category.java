@@ -8,21 +8,26 @@ import java.util.List;
 
 @Data
 @Entity
-@Table(name = "tags")
-public class Tag {
+@Table(name = "categories")
+public class Category {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int tagId;
+    private int categoryId;
     private String name;
+    private String isSystem;
     private String status;
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdAt;
     @Temporal(TemporalType.TIMESTAMP)
     private Date updatedAt;
 
-    public Tag() {
+    public Category() {
     }
 
-    @ManyToMany(mappedBy = "tags")
+    @ManyToOne
+    @JoinColumn(name = "created_by_user_id")
+    private User createdByUser;
+
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Transaction> transactions;
 }
