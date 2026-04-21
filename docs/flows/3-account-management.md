@@ -15,22 +15,37 @@ Documentul descrie operatiunile pe care un utilizator le poate realiza asupra co
 2. Aplicatia afiseaza formularul de creare cont, cu urmatoarele campuri de completat:
    - alias cont
    - valuta (RON/USD/EUR)
+   - IBAN cont extern pentru alimentare initiala cont
+   - suma initiala
 
 3. Utilizatorul completeaza datele si confirma.
 
 #### Validari
 - alias-ul este obligatoriu
 - valuta trebuie selectata din lista suportata
+- suma initiala trebuie sa fie pozitiva si este, impreuna cu IBAN-ul, obligatorie
 
 #### Persistenta
 4. Se creeaza un rand in `ACCOUNTS`:
    - IBAN generat automat
-   - sold initial 0
+   - sold initial = 0
    - status = `ACTIVE`
 
 5. Se creeaza un rand in `ACCOUNT_ACCESS`:
    - userul curent
    - rol = `OWNER`
+
+6. Se creeaza un rand in `TRANSACTIONS`:
+   - tip tranzactie = `TOP_UP`
+   - cont destinatie = contul proaspat creat
+   - suma = suma initiala
+   - valuta = valuta contului
+   - status = `EXECUTED`
+
+7.  Se actualizeaza soldul contului creat:
+   - sold = suma initiala
+
+- Observatie: IBAN-ul contului extern este folosit doar pentru simularea fluxului de alimentare initiala din mediul extern si nu este persistat in baza de date.
 
 ### 4. Flux 2: creare cont multiaccount
 
