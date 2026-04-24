@@ -3,6 +3,7 @@ package com.example.demo.domain;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 @Data
@@ -12,9 +13,9 @@ public class BankLimit {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int bankLimitId;
-    private int maxAmountPerTransactionRon;
-    private int maxDailyAmountRon;
-    private int maxDailyTransactionsCount;
+    private BigDecimal maxAmountPerTransactionRon;
+    private BigDecimal maxDailyAmountRon;
+    private BigDecimal maxDailyTransactionsCount;
     private String status;
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdAt;
