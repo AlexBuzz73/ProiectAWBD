@@ -11,7 +11,7 @@ import java.util.Date;
 public class UserLimit {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int userLimitId;
+    private Integer userLimitId;
     private BigDecimal maxAmountPerTransactionRon;
     private BigDecimal maxDailyAmountRon;
     private BigDecimal maxDailyTransactionsCount;

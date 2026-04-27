@@ -41,7 +41,18 @@ public class LimitMapper {
         return new UserLimitResponseDTO(userLimit.getUserLimitId(), userLimit.getMaxAmountPerTransactionRon(), userLimit.getMaxDailyAmountRon(), userLimit.getMaxAmountPerTransactionRon(), userLimit.getStatus());
     }
 
-    public BankLimitResponseDTO bankLimitResponseDTO(BankLimit bankLimit) {
+    public UserLimitResponseDTO toEmptyUserLimitResponseDTO() {
+        UserLimitResponseDTO userLimitResponseDTO = new UserLimitResponseDTO();
+
+        userLimitResponseDTO.setMaxAmountPerTransactionRon(null);
+        userLimitResponseDTO.setMaxDailyAmountRon(null);
+        userLimitResponseDTO.setMaxDailyTransactionsCount(null);
+        userLimitResponseDTO.setStatus(null);
+
+        return userLimitResponseDTO;
+    }
+
+    public BankLimitResponseDTO toBankLimitResponseDTO(BankLimit bankLimit) {
         return new BankLimitResponseDTO(bankLimit.getBankLimitId(), bankLimit.getMaxAmountPerTransactionRon(), bankLimit.getMaxDailyAmountRon(), bankLimit.getMaxDailyTransactionsCount(), bankLimit.getStatus());
     }
 }

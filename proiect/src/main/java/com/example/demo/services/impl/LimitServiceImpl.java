@@ -2,18 +2,94 @@ package com.example.demo.services.impl;
 
 import com.example.demo.domain.BankLimit;
 import com.example.demo.domain.User;
+import com.example.demo.domain.UserLimit;
 import com.example.demo.dto.BankLimitRequestDTO;
+import com.example.demo.dto.BankLimitResponseDTO;
 import com.example.demo.dto.UserLimitRequestDTO;
 import com.example.demo.dto.UserLimitResponseDTO;
+import com.example.demo.mappers.LimitMapper;
+import com.example.demo.repositories.BankLimitRepository;
+import com.example.demo.repositories.UserLimitRepository;
+import com.example.demo.repositories.UserRepository;
 import com.example.demo.services.LimitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class LimitServiceImpl implements LimitService {
+
+    private final BankLimitRepository bankLimitRepository;
+    private final UserLimitRepository userLimitRepository;
+    private final LimitMapper limitMapper;
+    private final UserRepository userRepository;
+
+
+    @Override
+    public BankLimitResponseDTO getBankLimits() {
+        BankLimit bankLimit = bankLimitRepository.findByStatus("ACTIVE").orElseThrow( () -> new IllegalArgumentException("Active bank limits not found!"));
+
+        return limitMapper.toBankLimitResponseDTO(bankLimit);
+    }
+
+    @Override
+    public BankLimitResponseDTO updateBankLimits(BankLimitRequestDTO bankLimitRequestDTO) {
+        BankLimit bankLimit = bankLimitRepository.findByStatus("ACTIVE").orElseThrow( () -> new IllegalArgumentException("Active bank limits not found!"));
+        bankLimit.setMaxAmountPerTransactionRon(bankLimitRequestDTO.getMaxAmountPerTransactionRon());
+        bankLimit.setMaxDailyAmountRon(bankLimitRequestDTO.getMaxDailyAmountRon());
+        bankLimit.setMaxDailyTransactionsCount(bankLimitRequestDTO.getMaxDailyTransactionsCount());
+        bankLimit.setUpdatedAt(new Date());
+
+        BankLimit savedBankLimits = bankLimitRepository.save(bankLimit);
+
+        return limitMapper.toBankLimitResponseDTO(savedBankLimits);
+    }
+
+    @Override
+    public UserLimitResponseDTO getUserLimits(Integer userId) {
+
+        Optional<UserLimit> optionalUserLimits = userLimitRepository.findByUserUserIdAndStatus(userId, "ACTIVE");
+
+        if(optionalUserLimits.isPresent()) {
+            return limitMapper.toUserLimitResponseDTO(optionalUserLimits.get());
+        }
+
+        return limitMapper.toEmptyUserLimitResponseDTO();
+    }
+
+    @Override
+    public UserLimitResponseDTO updateUserLimits(Integer userId, UserLimitRequestDTO userLimitRequestDTO) {
+        User user = userRepository.findById(userId).orElseThrow( () -> new IllegalArgumentException("User not found!"));
+        validateUserActive(user);
+
+        Optional<UserLimit> optionalUserLimit = userLimitRepository.findByUserUserIdAndStatus(userId, "ACTIVE");
+
+        UserLimit userLimit;
+
+        if(optionalUserLimit.isPresent()) {
+            userLimit = optionalUserLimit.get();
+        } else {
+            userLimit = new UserLimit();
+            userLimit.setUser(user);
+            userLimit.setStatus("ACTIVE");
+            userLimit.setCreatedAt(new Date());
+        }
+
+        userLimit.setMaxAmountPerTransactionRon(userLimitRequestDTO.getMaxAmountPerTransactionRon());
+        userLimit.setMaxDailyAmountRon(userLimitRequestDTO.getMaxDailyAmountRon());
+        userLimit.setMaxDailyTransactionsCount(userLimitRequestDTO.getMaxDailyTransactionsCount());
+        userLimit.setUpdatedAt(new Date());
+        UserLimit savedUserLimit = userLimitRepository.save(userLimit);
+
+        return limitMapper.toUserLimitResponseDTO(savedUserLimit);
+
+    }
 
     @Override
     public void validateRequiredFields(UserLimitRequestDTO userLimitRequestDTO, BankLimitRequestDTO bankLimitRequestDTO) {

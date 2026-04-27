@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface UserLimitRepository extends JpaRepository<UserLimit, Long> {
+public interface UserLimitRepository extends JpaRepository<UserLimit, Integer> {
 
-    Optional<UserLimit> findByUserIdAndStatus(Long UserId, String status);
+    Optional<UserLimit> findByUserUserIdAndStatus(Integer userId, String status);
 }
