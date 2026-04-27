@@ -1,13 +1,10 @@
-package com.example.demo.contollers;
+package com.example.demo.controllers;
 
 import com.example.demo.dto.BankLimitRequestDTO;
 import com.example.demo.dto.BankLimitResponseDTO;
 import com.example.demo.dto.UserLimitRequestDTO;
 import com.example.demo.dto.UserLimitResponseDTO;
 import com.example.demo.services.LimitService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.repository.cdi.Eager;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 @RestController

@@ -15,12 +15,18 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-//    @Bean
-//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-//        http.csrf(csrf -> csrf.disable())
-//                .authorizeHttpRequests(auth -> auth.requestMatchers("/api/admin/bank-limits").permitAll()
-//                        .requestMatchers("/api/user/**").permitAll()
-//                        .anyRequest().permitAll());
-//        return http.build();
-//    }
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        // TODO: de securizat endpoints pe baza rolurilor
+        http.csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/admin/**").permitAll()
+                        .requestMatchers("/api/accounts/**").permitAll()
+                        .requestMatchers("/h2-console/**").permitAll()
+                        .anyRequest().authenticated()
+                ).headers(headers -> headers.frameOptions(frame -> frame.disable()));
+
+        return http.build();
+    }
 }
