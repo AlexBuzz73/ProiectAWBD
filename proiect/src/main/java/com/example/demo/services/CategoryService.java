@@ -9,4 +9,6 @@ public interface CategoryService {
     public List<CategoryResponseDTO> getAvailableCategories(Integer userId);
     public CategoryResponseDTO createCategory(Integer userId, CategoryRequestDTO categoryRequestDTO);
     public void deleteCategory(Integer userId, Integer categoryId);
+    public void updateCategory(Integer userId, Integer categoryId, CategoryRequestDTO categoryRequestDTO);
+    public CategoryResponseDTO getCategory(Integer userId, Integer categoryId);
 }
