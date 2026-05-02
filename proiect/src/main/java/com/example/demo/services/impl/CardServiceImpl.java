@@ -71,8 +71,8 @@ public class CardServiceImpl implements CardService {
         return cardMapper.toCardResponseDTO(cardRepository.save(card));
     }
 
-    @Override
-    public void blockCard(Integer userId, Long accountId, Integer cardId) {
+
+    private void blockCard(Integer userId, Long accountId, Integer cardId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
 
         if(!"ACTIVE".equals(user.getStatus())) {
@@ -92,7 +92,15 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
-    public void unblockCard(Integer userId, Long accountId, Integer cardId) {
+    public void updateCard(Integer userId, Long accountId, Integer cardId, String status) {
+        if("ACTIVE".equals(status)) {
+            blockCard(userId, accountId, cardId);
+        } else if("BLOCKED".equals(status)) {
+            unblockCard(userId, accountId, cardId);
+        }
+    }
+
+    private void unblockCard(Integer userId, Long accountId, Integer cardId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
 
         if(!"ACTIVE".equals(user.getStatus())) {
