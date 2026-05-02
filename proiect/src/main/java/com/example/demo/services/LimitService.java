@@ -21,4 +21,7 @@ public interface LimitService {
     void validateUserLimitsAgainstBankLimits(UserLimitRequestDTO userLimitRequestDTO, BankLimitRequestDTO bankLimitRequestDTO);
     void validateUserActive(User user);
     void validateBankLimitsActive(BankLimit bankLimit);
+
+    void deleteUserLimits(Integer userId);
+    void deleteBankLimits(Integer bankLimitId);
 }

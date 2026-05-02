@@ -88,4 +88,32 @@ public class CategoryServiceImpl implements CategoryService {
 
         categoryRepository.save(category);
     }
+
+    @Override
+    public void updateCategory(Integer userId, Integer categoryId, CategoryRequestDTO categoryRequestDTO) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+
+        Category category = categoryRepository.findById(categoryId).orElseThrow(() -> new RuntimeException("Category not found"));
+
+        if (category.getCreatedByUser() == null || !category.getCreatedByUser().equals(user)){
+            throw new RuntimeException("You can update your own category");
+        }
+
+
+        category.setName(categoryRequestDTO.getName());
+        category.setIsSystem("Y");
+        category.setStatus("ACTIVE");
+        category.setUpdatedAt(new Date());
+
+        categoryRepository.save(category);
+    }
+
+    @Override
+    public CategoryResponseDTO getCategory(Integer userId, Integer categoryId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+
+        Category category = categoryRepository.findById(categoryId).orElseThrow(() -> new RuntimeException("Category not found"));
+
+        return  categoryMapper.toCategoryResponseDTO(category, "Y");
+    }
 }

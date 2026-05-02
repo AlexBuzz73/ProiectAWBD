@@ -45,21 +45,31 @@ public class CardController {
         cardService.deleteCard(userId, accountId);
     }
 
-    @PatchMapping("/{cardId}/block")
-    public void blockCard(
-            @PathVariable Integer userId,
-            @PathVariable Long accountId,
-            @PathVariable Integer cardId
-    ) {
-        cardService.blockCard(userId, accountId, cardId);
-    }
+//    @PatchMapping("/{cardId}/block")
+//    public void blockCard(
+//            @PathVariable Integer userId,
+//            @PathVariable Long accountId,
+//            @PathVariable Integer cardId
+//    ) {
+//        cardService.blockCard(userId, accountId, cardId);
+//    }
+//
+//    @PatchMapping("/{cardId}/unblock")
+//    public void unblockCard(
+//            @PathVariable Integer userId,
+//            @PathVariable Long accountId,
+//            @PathVariable Integer cardId
+//    ) {
+//        cardService.unblockCard(userId, accountId, cardId);
+//    }
 
-    @PatchMapping("/{cardId}/unblock")
-    public void unblockCard(
+    @PatchMapping("/{cardId}/status")
+    public void updateCard(
             @PathVariable Integer userId,
             @PathVariable Long accountId,
-            @PathVariable Integer cardId
+            @PathVariable Integer cardId,
+            @PathVariable String status
     ) {
-        cardService.unblockCard(userId, accountId, cardId);
+        cardService.updateCard(userId, accountId, cardId, status);
     }
 }

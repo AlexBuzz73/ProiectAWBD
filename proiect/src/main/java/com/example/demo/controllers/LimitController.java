@@ -41,4 +41,16 @@ public class LimitController {
     public UserLimitResponseDTO updateUserLimits(@RequestBody UserLimitRequestDTO userLimitRequestDTO, @PathVariable Integer userId) {
         return limitService.updateUserLimits(userId, userLimitRequestDTO);
     }
+
+    @DeleteMapping("/user/{userId}/limits")
+    public void deleteUserLimits(@PathVariable Integer userId) {
+        limitService.deleteUserLimits(userId);
+    }
+
+    @DeleteMapping("/user/{userId}/limits")
+    public void deleteBankLimits(@PathVariable Integer bankLimitId) {
+        limitService.deleteBankLimits(bankLimitId);
+    }
+
+    
 }

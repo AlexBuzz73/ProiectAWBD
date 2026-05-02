@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/users/{userId}/accounts/{accountId}/category")
+@RequestMapping("/api/users/{userId}/categories")
 public class CategoryController {
 
     private CategoryService categoryService;
@@ -29,11 +29,28 @@ public class CategoryController {
         return categoryService.getAvailableCategories(userId);
     }
 
+    @GetMapping("/{categoryId}")
+    public CategoryResponseDTO getCategory(
+            @PathVariable Integer userId,
+            @PathVariable Integer categoryId
+    ) {
+        return categoryService.getCategory(userId, categoryId);
+    }
+
     @PatchMapping("/{categoryId}/delete")
     public void deleteCategory(
             @PathVariable Integer userId,
             @PathVariable Integer categoryId
     ) {
         categoryService.deleteCategory(userId, categoryId);
+    }
+
+    @PutMapping("/{categoryId}")
+    public void updateCategory(
+            @PathVariable Integer userId,
+            @PathVariable Integer categoryId,
+            @PathVariable CategoryRequestDTO categoryRequestDTO
+    ){
+        categoryService.updateCategory(userId, categoryId, categoryRequestDTO);
     }
 }
