@@ -190,4 +190,28 @@ public class LimitServiceImpl implements LimitService {
             throw new IllegalArgumentException("Bank: Bank Limit is null!");
         }
     }
+
+    @Override
+    public void deleteUserLimits(Integer userId ) {
+        User user = userRepository.findById(userId).orElseThrow( () -> new IllegalArgumentException("User not found!"));
+        validateUserActive(user);
+
+        Optional<UserLimit> optionalUserLimit = userLimitRepository.findByUserUserIdAndStatus(userId, "ACTIVE");
+
+        UserLimit userLimit;
+        if(optionalUserLimit.isPresent()) {
+            userLimit = optionalUserLimit.get();
+        } else {
+            throw new IllegalArgumentException("User: User limit not found!");
+        }
+
+        userLimit.setStatus("INACTIVE");
+
+    }
+
+    @Override
+    public void deleteBankLimits(Integer bankLimitId) {
+        BankLimit bankLimit = bankLimitRepository.findByStatus("ACTIVE").orElseThrow( () -> new IllegalArgumentException("Active bank limits not found!"));
+        bankLimit.setStatus("INACTIVE");
+    }
 }
