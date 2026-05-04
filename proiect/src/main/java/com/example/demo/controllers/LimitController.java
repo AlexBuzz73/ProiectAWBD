@@ -7,6 +7,7 @@ import com.example.demo.dto.UserLimitResponseDTO;
 import com.example.demo.services.LimitService;
 import org.springframework.web.bind.annotation.*;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api")
 public class LimitController {
@@ -41,16 +42,16 @@ public class LimitController {
     public UserLimitResponseDTO updateUserLimits(@RequestBody UserLimitRequestDTO userLimitRequestDTO, @PathVariable Integer userId) {
         return limitService.updateUserLimits(userId, userLimitRequestDTO);
     }
-
+    
     @DeleteMapping("/user/{userId}/limits")
     public void deleteUserLimits(@PathVariable Integer userId) {
         limitService.deleteUserLimits(userId);
     }
 
-    @DeleteMapping("/user/{userId}/limits")
+    @DeleteMapping("/admin/bank-limits/{bankLimitId}")
     public void deleteBankLimits(@PathVariable Integer bankLimitId) {
         limitService.deleteBankLimits(bankLimitId);
     }
-
+    
     
 }
