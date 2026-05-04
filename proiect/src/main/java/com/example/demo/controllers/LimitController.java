@@ -7,6 +7,7 @@ import com.example.demo.dto.UserLimitResponseDTO;
 import com.example.demo.services.LimitService;
 import org.springframework.web.bind.annotation.*;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api")
 public class LimitController {

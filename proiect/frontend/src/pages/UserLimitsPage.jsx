@@ -1,8 +1,9 @@
 import {useEffect, useState} from "react";
-import LimitsForm from "../components/LimitsForm";
-import {getBankLimits, updateBankLimits, deleteBankLimits, updateUserLimits, deleteUserLimits} from "../api/limitApi";
+import LimitsForm from "../components/LimitsForm.jsx";
+import {getUserLimits, updateUserLimits, deleteUserLimits} from "../api/limitApi.js";
 
-function BankLimitsPage() {
+function UserLimitsPage() {
+    const userId = 1; //testare
     const [limits, setLimits] = useState(null);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
@@ -13,7 +14,7 @@ function BankLimitsPage() {
 
     const loadLimits = async () => {
         try {
-            const data = await getBankLimits(limits);
+            const data = await getUserLimits(limits);
             setLimits(data);
             setError("");
         } catch (err) {
@@ -23,35 +24,36 @@ function BankLimitsPage() {
 
     const handleSubmit = async (formatData) => {
         try {
-            const updated = await updateBankLimits(limits, formatData);
+            const updated = await updateUserLimits(limits, formatData);
             setLimits(updated);
-            setMessage("Bank Limits updated");
+            setMessage("User Limits updated");
             setError("");
         } catch (err) {
             setError(err.message);
-            setMessage("Bank Limits update error");
+            setMessage("User Limits update error");
         }
     }
 
     const handleDelete = async () => {
         try {
-            await deleteBankLimits(limits);
-            setMessage("Bank Limits deleted");
+            await deleteUserLimits(limits);
+            setMessage("User Limits deleted");
             setError("");
             loadLimits();
         } catch (err) {
             setError(err.message);
-            setMessage("Bank Limits delete error");
+            setMessage("User Limits delete error");
         }
     }
 
     if (!message) {
-        return <p> Loading globl limits...</p>
+        return <p> Loading global limits...</p>
     }
 
     return (
         <div>
             <h1>Configure global limits</h1>
+
 
             {message && <p style={{ color: "green" }}>{message}</p>}
             {error && <p style={{ color: "red" }}>{error}</p>}
@@ -62,9 +64,9 @@ function BankLimitsPage() {
                 onSubmit={handleSubmit}
             />
 
-            <button onClick={handleDelete}> Delete Bank Limits</button>
+            <button onClick={handleDelete}> Delete User Limits</button>
         </div>
     );
 }
 
-export default BankLimitsPage;
+export default UserLimitsPage;

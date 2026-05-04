@@ -1,5 +1,5 @@
-import BankLimitsPage from "../../../../../../frontend/src/pages/BankLimitsPage";
-import UserLimitsPage from "../../../../../../frontend/src/pages/UserLimitsPage";
+import BankLimitsPage from "./pages/BankLimitsPage";
+import UserLimitsPage from "./pages/UserLimitsPage";
 
 function App() {
     return (
