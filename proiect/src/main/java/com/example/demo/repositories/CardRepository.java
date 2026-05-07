@@ -9,7 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface CardRepository extends JpaRepository<Card, Long> {
-    Optional<Card> findCardByAccountIdAndStatus(Long accountId, String status);
-    Boolean existsCardByAccountIdAndStatus(Long accountId, String status);
+    Optional<Card> findCardByAccountAccountIdAndStatus(Long accountId, String status);
+    Boolean existsCardByAccountAccountIdAndStatus(Long accountId, String status);
     Boolean existsCardByCardNumber(String cardNumber);
 }

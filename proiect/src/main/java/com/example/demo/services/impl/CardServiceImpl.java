@@ -46,7 +46,7 @@ public class CardServiceImpl implements CardService {
             throw new RuntimeException("Viewer user cannot create cards!");
         }
 
-        boolean activeCardExists = cardRepository.existsCardByAccountIdAndStatus(accountId, "ACTIVE");
+        boolean activeCardExists = cardRepository.existsCardByAccountAccountIdAndStatus(accountId, "ACTIVE");
 
         if(activeCardExists) {
             throw new RuntimeException("Card already exists for this account!");
@@ -85,7 +85,7 @@ public class CardServiceImpl implements CardService {
             throw new RuntimeException("Account is not active");
         }
 
-        Card card = cardRepository.findCardByAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new RuntimeException("Card not found"));
+        Card card = cardRepository.findCardByAccountAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new RuntimeException("Card not found"));
 
         card.setStatus("BLOCKED");
 
@@ -113,7 +113,7 @@ public class CardServiceImpl implements CardService {
             throw new RuntimeException("Account is not active");
         }
 
-        Card card = cardRepository.findCardByAccountIdAndStatus(accountId, "BLOCKED").orElseThrow(() -> new RuntimeException("Card not found"));
+        Card card = cardRepository.findCardByAccountAccountIdAndStatus(accountId, "BLOCKED").orElseThrow(() -> new RuntimeException("Card not found"));
 
         card.setStatus("ACTIVE");
     }
@@ -153,7 +153,7 @@ public class CardServiceImpl implements CardService {
             throw new RuntimeException("Account is not active");
         }
 
-        Card card = cardRepository.findCardByAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new RuntimeException("Card not found"));
+        Card card = cardRepository.findCardByAccountAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new RuntimeException("Card not found"));
 
         card.setStatus("CLOSED");
 
@@ -173,7 +173,7 @@ public class CardServiceImpl implements CardService {
             throw new RuntimeException("Account is not active");
         }
 
-        Card card = cardRepository.findCardByAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new RuntimeException("Card not found"));
+        Card card = cardRepository.findCardByAccountAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new RuntimeException("Card not found"));
 
         return cardMapper.toCardResponseDTO(card);
     }
