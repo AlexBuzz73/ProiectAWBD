@@ -5,6 +5,9 @@ import UserDashboardPage from "./pages/user/UserDashboardPage.jsx";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
+import NewAccountPage from "./pages/user/NewAccountPage.jsx";
+import SingleAccountCreatePage from "./pages/user/SingleAccountCreatePage.jsx";
+import AccountDetailsPage from "./pages/user/AccountDetailsPage.jsx";
 
 function App() {
     return (
@@ -23,6 +26,27 @@ function App() {
                 element={
                     <ProtectedRoute requiredRole="ADMIN">
                         <AdminDashboardPage />
+                    </ProtectedRoute>
+                }
+            />
+            <Route path="/accounts/new"
+                element={
+                    <ProtectedRoute requiredRole="USER">
+                        <NewAccountPage />
+                    </ProtectedRoute>
+                }
+            />
+            <Route path="/accounts/new/single"
+                element={
+                    <ProtectedRoute requiredRole="USER">
+                        <SingleAccountCreatePage />
+                    </ProtectedRoute>
+                }
+            />
+            <Route path="/accounts/:accountId"
+                element={
+                    <ProtectedRoute requiredRole="USER">
+                        <AccountDetailsPage />
                     </ProtectedRoute>
                 }
             />
