@@ -16,7 +16,7 @@ import java.util.List;
 public class PaymentRequestDTO {
 
     @NotNull(message = "Contul sursa trebuie selectat.")
-    private Integer sourceAccountId; // Folosește Integer dacă ID-ul din Account e Integer
+    private Integer sourceAccountId;
 
     @NotBlank(message = "IBAN-ul destinatie este obligatoriu.")
     @Pattern(regexp = "^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$", message = "Format IBAN invalid.")
@@ -33,13 +33,14 @@ public class PaymentRequestDTO {
     private Integer categoryId;
 
     @NotBlank(message = "Tipul de procesare este obligatoriu.")
-    private String processingType; // STANDARD, URGENT, PROGRAMAT
+    private String processingType;
 
     private String description;
-
 
     @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date scheduledDate;
 
     private List<Integer> tagIds;
+
+    private String password;
 }
