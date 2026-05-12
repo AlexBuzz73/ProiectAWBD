@@ -5,6 +5,7 @@ import com.example.demo.dto.BankLimitResponseDTO;
 import com.example.demo.dto.UserLimitRequestDTO;
 import com.example.demo.dto.UserLimitResponseDTO;
 import com.example.demo.services.LimitService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @CrossOrigin(origins = "http://localhost:5173")
@@ -29,7 +30,7 @@ public class LimitController {
 //    }
 
     @PutMapping("/admin/bank-limits")
-    public BankLimitResponseDTO updateBankLimits(@RequestBody BankLimitRequestDTO bankLimitRequestDTO) {
+    public BankLimitResponseDTO updateBankLimits(@Valid @RequestBody BankLimitRequestDTO bankLimitRequestDTO) {
         return limitService.updateBankLimits(bankLimitRequestDTO);
     }
 
@@ -39,7 +40,7 @@ public class LimitController {
     }
 
     @PutMapping("/user/{userId}/limits")
-    public UserLimitResponseDTO updateUserLimits(@RequestBody UserLimitRequestDTO userLimitRequestDTO, @PathVariable Integer userId) {
+    public UserLimitResponseDTO updateUserLimits(@Valid @RequestBody UserLimitRequestDTO userLimitRequestDTO, @PathVariable Integer userId) {
         return limitService.updateUserLimits(userId, userLimitRequestDTO);
     }
     
