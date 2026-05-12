@@ -28,28 +28,30 @@ public class CardServiceImpl implements CardService {
 
     @Override
     public CardResponseDTO createCard(Integer userId, Long accountId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if(!"ACTIVE".equals(user.getStatus())) {
-            throw new RuntimeException("User is not active");
+            throw new IllegalArgumentException("User is not active");
         }
 
-        Account account = accountRepository.findById(accountId).orElseThrow(() -> new RuntimeException("Account not found"));
+        Account account = accountRepository.findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
         if(!"ACTIVE".equals(account.getStatus())) {
-            throw new RuntimeException("Account is not active");
+            throw new IllegalArgumentException("Account is not active");
         }
 
-        AccountAccess accountAccess = accountAccessRepository.findById(accountId).orElseThrow(() -> new RuntimeException("User doesn't have acces to this acccount!"));
+        AccountAccess accountAccess = accountAccessRepository
+                .findByAccountAccountIdAndUserUserIdAndStatus(accountId, userId, "ACTIVE")
+                .orElseThrow(() -> new IllegalArgumentException("User doesn't have acces to this acccount!"));
 
         if("VIEWER".equals(accountAccess.getAccessRole())) {
-            throw new RuntimeException("Viewer user cannot create cards!");
+            throw new IllegalArgumentException("Viewer user cannot create cards!");
         }
 
-        boolean activeCardExists = cardRepository.existsCardByAccountIdAndStatus(accountId, "ACTIVE");
+        boolean activeCardExists = cardRepository.existsCardByAccountAccountIdAndStatus(accountId, "ACTIVE");
 
         if(activeCardExists) {
-            throw new RuntimeException("Card already exists for this account!");
+            throw new IllegalArgumentException("Card already exists for this account!");
         }
 
         Card card = new Card();
@@ -66,28 +68,29 @@ public class CardServiceImpl implements CardService {
         String holderName = user.getUsername();
         card.setHolderName(holderName);
 
-        card.setStatus(card.getStatus());
+        card.setStatus("ACTIVE");
 
         return cardMapper.toCardResponseDTO(cardRepository.save(card));
     }
 
 
     private void blockCard(Integer userId, Long accountId, Integer cardId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if(!"ACTIVE".equals(user.getStatus())) {
-            throw new RuntimeException("User is not active");
+            throw new IllegalArgumentException("User is not active");
         }
 
-        Account account = accountRepository.findById(accountId).orElseThrow(() -> new RuntimeException("Account not found"));
+        Account account = accountRepository.findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
         if(!"ACTIVE".equals(account.getStatus())) {
-            throw new RuntimeException("Account is not active");
+            throw new IllegalArgumentException("Account is not active");
         }
 
-        Card card = cardRepository.findCardByAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new RuntimeException("Card not found"));
+        Card card = cardRepository.findCardByAccountAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new IllegalArgumentException("Card not found"));
 
         card.setStatus("BLOCKED");
+        cardRepository.save(card);
 
     }
 
@@ -101,21 +104,22 @@ public class CardServiceImpl implements CardService {
     }
 
     private void unblockCard(Integer userId, Long accountId, Integer cardId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if(!"ACTIVE".equals(user.getStatus())) {
-            throw new RuntimeException("User is not active");
+            throw new IllegalArgumentException("User is not active");
         }
 
-        Account account = accountRepository.findById(accountId).orElseThrow(() -> new RuntimeException("Account not found"));
+        Account account = accountRepository.findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
         if(!"ACTIVE".equals(account.getStatus())) {
-            throw new RuntimeException("Account is not active");
+            throw new IllegalArgumentException("Account is not active");
         }
 
-        Card card = cardRepository.findCardByAccountIdAndStatus(accountId, "BLOCKED").orElseThrow(() -> new RuntimeException("Card not found"));
+        Card card = cardRepository.findCardByAccountAccountIdAndStatus(accountId, "BLOCKED").orElseThrow(() -> new IllegalArgumentException("Card not found"));
 
         card.setStatus("ACTIVE");
+        cardRepository.save(card);
     }
 
     private String generateCardNumber() {
@@ -141,39 +145,40 @@ public class CardServiceImpl implements CardService {
 
     @Override
     public void deleteCard(Integer userId, Long accountId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if(!"ACTIVE".equals(user.getStatus())) {
-            throw new RuntimeException("User is not active");
+            throw new IllegalArgumentException("User is not active");
         }
 
-        Account account = accountRepository.findById(accountId).orElseThrow(() -> new RuntimeException("Account not found"));
+        Account account = accountRepository.findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
         if(!"ACTIVE".equals(account.getStatus())) {
-            throw new RuntimeException("Account is not active");
+            throw new IllegalArgumentException("Account is not active");
         }
 
-        Card card = cardRepository.findCardByAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new RuntimeException("Card not found"));
+        Card card = cardRepository.findCardByAccountAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new IllegalArgumentException("Card not found"));
 
         card.setStatus("CLOSED");
+        cardRepository.save(card);
 
     }
 
     @Override
     public CardResponseDTO getActiveCardFromAccount(Integer userId, Long accountId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if(!"ACTIVE".equals(user.getStatus())) {
-            throw new RuntimeException("User is not active");
+            throw new IllegalArgumentException("User is not active");
         }
 
-        Account account = accountRepository.findById(accountId).orElseThrow(() -> new RuntimeException("Account not found"));
+        Account account = accountRepository.findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
         if(!"ACTIVE".equals(account.getStatus())) {
-            throw new RuntimeException("Account is not active");
+            throw new IllegalArgumentException("Account is not active");
         }
 
-        Card card = cardRepository.findCardByAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new RuntimeException("Card not found"));
+        Card card = cardRepository.findCardByAccountAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new IllegalArgumentException("Card not found"));
 
         return cardMapper.toCardResponseDTO(card);
     }
