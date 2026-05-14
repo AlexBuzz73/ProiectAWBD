@@ -4,6 +4,7 @@ import com.example.demo.dto.CardResponseDTO;
 import com.example.demo.dto.CategoryRequestDTO;
 import com.example.demo.dto.CategoryResponseDTO;
 import com.example.demo.services.CategoryService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,12 +13,16 @@ import java.util.List;
 @RequestMapping("/api/users/{userId}/categories")
 public class CategoryController {
 
-    private CategoryService categoryService;
+    private final CategoryService categoryService;
+
+    public CategoryController(CategoryService categoryService) {
+        this.categoryService = categoryService;
+    }
 
     @PostMapping
     public CategoryResponseDTO createCategory(
             @PathVariable Integer userId,
-            @PathVariable CategoryRequestDTO categoryRequestDTO
+            @Valid @RequestBody  CategoryRequestDTO categoryRequestDTO
     ) {
         return categoryService.createCategory(userId, categoryRequestDTO);
     }
@@ -37,7 +42,7 @@ public class CategoryController {
         return categoryService.getCategory(userId, categoryId);
     }
 
-    @PatchMapping("/{categoryId}/delete")
+    @DeleteMapping("/{categoryId}")
     public void deleteCategory(
             @PathVariable Integer userId,
             @PathVariable Integer categoryId
@@ -49,7 +54,7 @@ public class CategoryController {
     public void updateCategory(
             @PathVariable Integer userId,
             @PathVariable Integer categoryId,
-            @PathVariable CategoryRequestDTO categoryRequestDTO
+            @Valid @RequestBody  CategoryRequestDTO categoryRequestDTO
     ){
         categoryService.updateCategory(userId, categoryId, categoryRequestDTO);
     }

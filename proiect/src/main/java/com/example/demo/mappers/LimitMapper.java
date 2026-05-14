@@ -38,7 +38,7 @@ public class LimitMapper {
     }
 
     public UserLimitResponseDTO toUserLimitResponseDTO(UserLimit userLimit) {
-        return new UserLimitResponseDTO(userLimit.getUserLimitId(), userLimit.getMaxAmountPerTransactionRon(), userLimit.getMaxDailyAmountRon(), userLimit.getMaxAmountPerTransactionRon(), userLimit.getStatus());
+        return new UserLimitResponseDTO(userLimit.getUserLimitId(), userLimit.getMaxAmountPerTransactionRon(), userLimit.getMaxDailyAmountRon(), userLimit.getMaxDailyTransactionsCount(), userLimit.getStatus());
     }
 
     public UserLimitResponseDTO toEmptyUserLimitResponseDTO() {
