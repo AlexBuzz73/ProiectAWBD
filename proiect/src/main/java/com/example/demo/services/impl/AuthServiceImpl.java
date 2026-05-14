@@ -10,6 +10,7 @@ import com.example.demo.mappers.AuthMapper;
 import com.example.demo.repositories.IndividualRepository;
 import com.example.demo.repositories.UserRepository;
 import com.example.demo.services.AuthService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -179,6 +180,18 @@ public class AuthServiceImpl implements AuthService {
         user.setFailedLoginAttempts(0);
         user.setUpdatedAt(new Date());
 
+        userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void unlockUserByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User with email " + email + " not found!"));
+
+        user.setStatus("ACTIVE");
+        user.setFailedLoginAttempts(0);
+        user.setUpdatedAt(new Date());
         userRepository.save(user);
     }
 }

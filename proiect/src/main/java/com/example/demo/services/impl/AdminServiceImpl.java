@@ -1,0 +1,97 @@
+package com.example.demo.services.impl;
+
+import com.example.demo.domain.*;
+import com.example.demo.dto.*;
+import com.example.demo.repositories.*;
+import com.example.demo.services.AdminService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Date;
+
+@Service
+@RequiredArgsConstructor
+public class AdminServiceImpl implements AdminService {
+
+    private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
+    private final AccountAccessRepository accountAccessRepository;
+    private final BankLimitRepository bankLimitRepository;
+
+    @Override
+    @Transactional
+    public Account createSharedAccount(SharedAccountRequest dto) {
+        if (dto.getUsers().size() > 2) {
+            throw new RuntimeException("Un cont partajat poate avea maxim 2 utilizatori.");
+        }
+
+        boolean hasOwner = dto.getUsers().stream()
+                .anyMatch(u -> "OWNER".equalsIgnoreCase(u.getRole()));
+        if (!hasOwner) {
+            throw new RuntimeException("Contul trebuie să aibă cel puțin un utilizator cu rolul OWNER.");
+        }
+
+
+        Account account = new Account();
+        account.setAlias(dto.getAlias());
+        account.setCurrency(dto.getCurrency());
+        account.setBalance(0.0);
+        account.setStatus("ACTIVE");
+        account.setCreatedAt(new Date());
+        Account savedAccount = accountRepository.save(account);
+
+
+        for (UserRoleDTO userDto : dto.getUsers()) {
+            User user = userRepository.findByEmail(userDto.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Utilizatorul " + userDto.getEmail() + " nu există."));
+
+            AccountAccess access = new AccountAccess();
+            access.setAccount(savedAccount);
+            access.setUser(user);
+            access.setAccessRole(userDto.getRole().toUpperCase());
+            access.setStatus("ACTIVE");
+            access.setCreatedAt(new Date());
+            accountAccessRepository.save(access);
+        }
+
+        return savedAccount;
+    }
+
+    @Override
+    @Transactional
+    public void updateBankLimits(BankLimitUpdateDTO dto) {
+
+        BankLimit limits = bankLimitRepository.findAll().stream().findFirst()
+                .orElse(new BankLimit());
+
+        limits.setMaxAmountPerTransactionRon(dto.getMaxAmountPerTransactionRon());
+        limits.setMaxDailyAmountRon(dto.getMaxDailyAmountRon());
+
+        limits.setMaxDailyTransactionsCount(java.math.BigDecimal.valueOf(dto.getMaxDailyTransactionsCount()));
+        limits.setUpdatedAt(new Date());
+
+        bankLimitRepository.save(limits);
+    }
+
+    @Override
+    @Transactional
+    public void revokeAccountAccess(Long accountId, String email) {
+        AccountAccess access = accountAccessRepository.findByAccountAccountIdAndUserEmail(accountId, email)
+                .orElseThrow(() -> new RuntimeException("Nu s-a găsit permisiunea de acces pentru acest cont și email."));
+
+
+        if ("OWNER".equals(access.getAccessRole())) {
+            long activeOwners = accountAccessRepository.findByAccountAccountId(accountId).stream()
+                    .filter(a -> "OWNER".equals(a.getAccessRole()) && "ACTIVE".equals(a.getStatus()))
+                    .count();
+            if (activeOwners <= 1) {
+                throw new RuntimeException("Operațiune refuzată: Trebuie să rămână cel puțin un OWNER activ pe cont.");
+            }
+        }
+
+        access.setStatus("INACTIVE");
+        access.setUpdatedAt(new Date());
+        accountAccessRepository.save(access);
+    }
+}

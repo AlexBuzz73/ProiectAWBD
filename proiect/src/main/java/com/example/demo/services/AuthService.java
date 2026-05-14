@@ -11,4 +11,5 @@ public interface AuthService {
     void registerUser(IndividualRegistrationDTO individualDto, UserRegistrationDTO userDto);
     LoginResponseDTO login(LoginRequestDTO loginRequestDTO);
     void unlockUser(int userId);
+    void unlockUserByEmail(String email);
 }

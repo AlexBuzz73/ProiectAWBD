@@ -12,4 +12,6 @@ public interface AccountAccessRepository extends JpaRepository<AccountAccess, Lo
 
     List<AccountAccess> findByUserUserIdAndStatus(int userId, String status);
     Optional<AccountAccess> findByAccountAccountIdAndUserUserIdAndStatus(Long accountId, int userId, String status);
+    Optional<AccountAccess> findByAccountAccountIdAndUserEmail(Long accountId, String email);
+    List<AccountAccess> findByAccountAccountId(Long accountId);
 }
