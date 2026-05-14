@@ -36,7 +36,7 @@ public class CardController {
 //        return "merge";
 //    }
 
-    @PatchMapping("/{cardId}/delete")
+    @DeleteMapping("/{cardId}/delete")
     public void deleteCard(
             @PathVariable Integer userId,
             @PathVariable Long accountId,
@@ -63,7 +63,7 @@ public class CardController {
 //        cardService.unblockCard(userId, accountId, cardId);
 //    }
 
-    @PatchMapping("/{cardId}/status")
+    @PatchMapping("/{cardId}/status/{status}")
     public void updateCard(
             @PathVariable Integer userId,
             @PathVariable Long accountId,

@@ -8,16 +8,20 @@ import com.example.demo.mappers.CategoryMapper;
 import com.example.demo.repositories.CategoryRepository;
 import com.example.demo.repositories.UserRepository;
 import com.example.demo.services.CategoryService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
+@Service
+@RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
-    private UserRepository userRepository;
-    private CategoryRepository categoryRepository;
-    private CategoryMapper categoryMapper;
+    private final UserRepository userRepository;
+    private final CategoryRepository categoryRepository;
+    private final CategoryMapper categoryMapper;
 
     @Override
     public List<CategoryResponseDTO> getAvailableCategories(Integer userId) {
@@ -44,13 +48,13 @@ public class CategoryServiceImpl implements CategoryService {
         boolean systemCategories = categoryRepository.existsByNameAndIsSystemAndStatus(categoryRequestDTO.getName(), "Y", "ACTIVE");
 
         if (systemCategories){
-            throw new RuntimeException("Category already exists with the same name");
+            throw new IllegalArgumentException("Category already exists with the same name");
         }
 
         boolean userCategoryExists = categoryRepository.existsByNameAndCreatedByUserUserIdAndStatus(categoryRequestDTO.getName(), userId, "ACTIVE");
 
         if (userCategoryExists){
-            throw new RuntimeException("Category already exists with the same name");
+            throw new IllegalArgumentException("Category already exists with the same name");
         }
 
         Category category = new Category();
@@ -69,16 +73,16 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public void deleteCategory(Integer userId, Integer categoryId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        Category category = categoryRepository.findById(categoryId).orElseThrow(() -> new RuntimeException("Category not found"));
+        Category category = categoryRepository.findById(categoryId).orElseThrow(() -> new IllegalArgumentException("Category not found"));
 
         if ("Y".equals(category.getIsSystem())){
-            throw new RuntimeException("System categories cannot be deleted");
+            throw new IllegalArgumentException("System categories cannot be deleted");
         }
 
         if (category.getCreatedByUser() == null || !category.getCreatedByUser().equals(user)){
-            throw new RuntimeException("You can delete your own category");
+            throw new IllegalArgumentException("You can delete your own category");
         }
 
 
@@ -101,7 +105,7 @@ public class CategoryServiceImpl implements CategoryService {
 
 
         category.setName(categoryRequestDTO.getName());
-        category.setIsSystem("Y");
+        category.setIsSystem("N");
         category.setStatus("ACTIVE");
         category.setUpdatedAt(new Date());
 

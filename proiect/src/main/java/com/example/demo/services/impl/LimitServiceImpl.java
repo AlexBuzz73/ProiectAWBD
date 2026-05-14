@@ -68,6 +68,13 @@ public class LimitServiceImpl implements LimitService {
         User user = userRepository.findById(userId).orElseThrow( () -> new IllegalArgumentException("User not found!"));
         validateUserActive(user);
 
+        BankLimit bankLimit = bankLimitRepository.findByStatus("ACTIVE")
+                .orElseThrow(() -> new IllegalArgumentException("Active bank limits not found!"));
+
+        validateUserRequiredFields(userLimitRequestDTO);
+        validateUserPositiveValues(userLimitRequestDTO);
+        validateUserLimitsAgainstBankLimits(userLimitRequestDTO, bankLimit);
+
         Optional<UserLimit> optionalUserLimit = userLimitRepository.findByUserUserIdAndStatus(userId, "ACTIVE");
 
         UserLimit userLimit;
@@ -89,6 +96,51 @@ public class LimitServiceImpl implements LimitService {
 
         return limitMapper.toUserLimitResponseDTO(savedUserLimit);
 
+    }
+
+    private void validateUserRequiredFields(UserLimitRequestDTO dto) {
+        if (dto.getMaxAmountPerTransactionRon() == null) {
+            throw new IllegalArgumentException("User: Max Amount Per Transaction in Ron is required!");
+        }
+
+        if (dto.getMaxDailyAmountRon() == null) {
+            throw new IllegalArgumentException("User: Max Daily Amount in Ron is required!");
+        }
+
+        if (dto.getMaxDailyTransactionsCount() == null) {
+            throw new IllegalArgumentException("User: Max Daily Transactions is required!");
+        }
+    }
+
+    private void validateUserPositiveValues(UserLimitRequestDTO dto) {
+        if (dto.getMaxAmountPerTransactionRon().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("User: Max Amount Per Transaction in Ron must be greater than zero!");
+        }
+
+        if (dto.getMaxDailyAmountRon().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("User: Max Daily Amount in Ron must be greater than zero!");
+        }
+
+        if (dto.getMaxDailyTransactionsCount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("User: Max Daily Transactions must be greater than zero!");
+        }
+    }
+
+    private void validateUserLimitsAgainstBankLimits(UserLimitRequestDTO userDto, BankLimit bankLimit) {
+        if (userDto.getMaxAmountPerTransactionRon()
+                .compareTo(bankLimit.getMaxAmountPerTransactionRon()) > 0) {
+            throw new IllegalArgumentException("The user Max Amount Per Transaction in Ron is greater than the bank Max Amount Per Transaction in Ron!");
+        }
+
+        if (userDto.getMaxDailyAmountRon()
+                .compareTo(bankLimit.getMaxDailyAmountRon()) > 0) {
+            throw new IllegalArgumentException("The user Max Daily Amount in Ron is greater than the bank Max Daily Amount in Ron!");
+        }
+
+        if (userDto.getMaxDailyTransactionsCount()
+                .compareTo(bankLimit.getMaxDailyTransactionsCount()) > 0) {
+            throw new IllegalArgumentException("The user Max Daily Transactions is greater than the bank Max Daily Transactions!");
+        }
     }
 
     @Override
@@ -153,7 +205,7 @@ public class LimitServiceImpl implements LimitService {
 
         BigDecimal bankMaxAmountPerTransactionRon = bankLimitRequestDTO.getMaxAmountPerTransactionRon();
         BigDecimal userMaxAmountPerTransactionRon = userLimitRequestDTO.getMaxAmountPerTransactionRon();
-        if( userMaxAmountPerTransactionRon.compareTo(bankMaxAmountPerTransactionRon) <= 0) {
+        if( userMaxAmountPerTransactionRon.compareTo(bankMaxAmountPerTransactionRon) > 0) {
             throw new IllegalArgumentException("The user Max Amount Per Transaction in Ron is greater than the bank Max Amount Per Transaction in Ron!");
         }
 
@@ -205,6 +257,7 @@ public class LimitServiceImpl implements LimitService {
             throw new IllegalArgumentException("User: User limit not found!");
         }
 
+        userLimitRepository.save(userLimit);
         userLimit.setStatus("INACTIVE");
 
     }
@@ -212,6 +265,7 @@ public class LimitServiceImpl implements LimitService {
     @Override
     public void deleteBankLimits(Integer bankLimitId) {
         BankLimit bankLimit = bankLimitRepository.findByStatus("ACTIVE").orElseThrow( () -> new IllegalArgumentException("Active bank limits not found!"));
+        bankLimitRepository.save(bankLimit);
         bankLimit.setStatus("INACTIVE");
     }
 }
