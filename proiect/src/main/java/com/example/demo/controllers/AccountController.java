@@ -5,6 +5,7 @@ import com.example.demo.dto.AccountResponseDTO;
 import com.example.demo.dto.AccountSummaryDTO;
 import com.example.demo.dto.CreateSingleAccountRequestDTO;
 import com.example.demo.services.AccountService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +20,7 @@ public class AccountController {
     private final AccountService accountService;
 
     @PostMapping
-    public ResponseEntity<AccountResponseDTO> createSingleAccount(@RequestBody CreateSingleAccountRequestDTO dto, @RequestParam int userId) {
+    public ResponseEntity<AccountResponseDTO> createSingleAccount(@Valid @RequestBody CreateSingleAccountRequestDTO dto, @RequestParam int userId) {
         AccountResponseDTO response = accountService.createSingleAccount(dto, userId);
         return ResponseEntity.ok(response);
     }

@@ -5,6 +5,7 @@ import com.example.demo.dto.LoginRequestDTO;
 import com.example.demo.dto.LoginResponseDTO;
 import com.example.demo.dto.RegistrationRequestDTO;
 import com.example.demo.services.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,19 +21,19 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/validate-individual")
-    public ResponseEntity<Void> validateIndividual(@RequestBody IndividualRegistrationDTO dto) {
+    public ResponseEntity<Void> validateIndividual(@Valid @RequestBody IndividualRegistrationDTO dto) {
         authService.validateIndividualRegistrationData(dto);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/register")
-    public ResponseEntity<Void> register(@RequestBody RegistrationRequestDTO dto) {
+    public ResponseEntity<Void> register(@Valid @RequestBody RegistrationRequestDTO dto) {
         authService.registerUser(dto.getIndividual(), dto.getUser());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO dto) {
+    public ResponseEntity<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO dto) {
         LoginResponseDTO response = authService.login(dto);
         return ResponseEntity.ok(response);
     }
