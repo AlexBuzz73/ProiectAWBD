@@ -1,5 +1,19 @@
 const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/accounts`;
 
+async function getErrorMessage(response, fallbackMessage) {
+    const contentType = response.headers.get("content-type");
+
+    if (contentType && contentType.includes("application/json")) {
+        const errorBody = await response.json();
+        const messages = Object.values(errorBody);
+
+        return messages.length > 0 ? messages[0] : fallbackMessage;
+    }
+
+    const message = await response.text();
+    return message || fallbackMessage;
+}
+
 export async function createSingleAccount(accountData, userId) {
     const response = await fetch(`${BASE_URL}?userId=${userId}`, {
         method: "POST",
@@ -10,8 +24,8 @@ export async function createSingleAccount(accountData, userId) {
     });
 
     if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || "Account creation failed.");
+        const message = await getErrorMessage(response, "Account creation failed.");
+        throw new Error(message);
     }
 
     return response.json();
@@ -21,8 +35,8 @@ export async function getActiveAccounts(userId) {
     const response = await fetch(`${BASE_URL}?userId=${userId}`);
 
     if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || "Could not load accounts.");
+        const message = await getErrorMessage(response, "Could not load accounts.");
+        throw new Error(message);
     }
 
     return response.json();
@@ -32,8 +46,8 @@ export async function getAccountDetails(accountId, userId) {
     const response = await fetch(`${BASE_URL}/${accountId}?userId=${userId}`);
 
     if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || "Could not load account details.");
+        const message = await getErrorMessage(response, "Could not load account details.");
+        throw new Error(message);
     }
 
     return response.json();
@@ -45,7 +59,7 @@ export async function closeAccount(accountId, userId) {
     });
 
     if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || "Could not close account.");
+        const message = await getErrorMessage(response, "Could not close account.");
+        throw new Error(message);
     }
 }
