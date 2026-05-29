@@ -1,9 +1,6 @@
 package com.example.demo.services;
 
-import com.example.demo.dto.AccountDetailsDTO;
-import com.example.demo.dto.AccountResponseDTO;
-import com.example.demo.dto.AccountSummaryDTO;
-import com.example.demo.dto.CreateSingleAccountRequestDTO;
+import com.example.demo.dto.*;
 
 import java.util.List;
 
@@ -13,4 +10,6 @@ public interface AccountService {
     List<AccountSummaryDTO> getActiveAccountsForUser(int userId);
     AccountDetailsDTO getAccountDetails(Long accountId, int userId);
     void closeAccount(Long accountId, int userId);
+    PageResponseDTO<AccountSummaryDTO> getActiveAccountsForUserPaged(int userId, int page, int size, String sortBy, String direction);
+    List<AccountCurrencySummaryDTO> getAccountCurrencySummary(int userId);
 }

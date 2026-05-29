@@ -1,20 +1,57 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getLoggedUser, removeLoggedUser } from "../../utils/authStorage.js";
-import { getActiveAccounts } from "../../api/accountsApi.js";
-import AccountList from "../../components/accounts/AccountList.jsx";
-import AccountCurrencySummary from "../../components/accounts/AccountCurrencySummary.jsx";
+import { getAccountCurrencySummary, getActiveAccountsPaged, } from "../../api/accountsApi.js";
+import { getUserTransactionsPaged, } from "../../api/transactionsApi";
+import AccountList from "../../components/accounts/AccountList";
+import TransactionList from "../../components/transactions/TransactionList";
+import AccountCurrencySummary from "../../components/accounts/AccountCurrencySummary";
+import PaginationControls from "../../components/common/PaginationControls";
+
+const EMPTY_ACCOUNTS_PAGE = {
+    content: [],
+    pageNumber: 0,
+    pageSize: 2,
+    totalElements: 0,
+    totalPages: 0,
+    first: true,
+    last: true,
+};
+
+const EMPTY_TRANSACTIONS_PAGE = {
+    content: [],
+    pageNumber: 0,
+    pageSize: 3,
+    totalElements: 0,
+    totalPages: 0,
+    first: true,
+    last: true,
+};
 
 function UserDashboardPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const user = getLoggedUser();
-    const [accounts, setAccounts] = useState([]);
+
+    const [accountsPage, setAccountsPage] = useState(EMPTY_ACCOUNTS_PAGE);
+    const [accountSummary, setAccountSummary] = useState([]);
     const [loadingAccounts, setLoadingAccounts] = useState(false);
+    const [loadingSummary, setLoadingSummary] = useState(false);
     const [accountsError, setAccountsError] = useState("");
+    const [summaryError, setSummaryError] = useState("");
     const [message, setMessage] = useState("");
-    const [selectedCurrency, setSelectedCurrency] = useState("ALL");
-    const filteredAccounts = selectedCurrency === "ALL" ? accounts : accounts.filter((account) => account.currency === selectedCurrency);
+    const [page, setPage] = useState(0);
+    const [pageSize, setPageSize] = useState(2);
+    const [sortBy, setSortBy] = useState("alias");
+    const [direction, setDirection] = useState("asc");
+
+    const [transactionsPage, setTransactionsPage] = useState(EMPTY_TRANSACTIONS_PAGE);
+    const [loadingTransactions, setLoadingTransactions] = useState(false);
+    const [transactionsError, setTransactionsError] = useState("");
+    const [transactionsPageNumber, setTransactionsPageNumber] = useState(0);
+    const [transactionsPageSize, setTransactionsPageSize] = useState(3);
+    const [transactionsSortBy, setTransactionsSortBy] = useState("createdAt");
+    const [transactionsDirection, setTransactionsDirection] = useState("desc");
 
     useEffect(() => {
         if (location.state?.message) {
@@ -23,28 +60,115 @@ function UserDashboardPage() {
     }, [location]);
 
     useEffect(() => {
-        loadAccounts();
-    }, []);
-
-    const loadAccounts = async () => {
-        setLoadingAccounts(true);
-        setAccountsError("");
-
-        try {
-            const response = await getActiveAccounts(user.userId);
-
-            setAccounts(response);
-        } catch (err) {
-            setAccountsError(err.message);
-        } finally {
-            setLoadingAccounts(false);
+        if (!user?.userId) {
+            return;
         }
-    };
+
+        const loadAccountSummary = async () => {
+            setLoadingSummary(true);
+            setSummaryError("");
+
+            try {
+                const response = await getAccountCurrencySummary(user.userId);
+                setAccountSummary(response);
+            } catch (err) {
+                setSummaryError(err.message);
+            } finally {
+                setLoadingSummary(false);
+            }
+        };
+
+        loadAccountSummary();
+    }, [user?.userId]);
+
+    useEffect(() => {
+        if (!user?.userId) {
+            return;
+        }
+
+        const loadPagedAccounts = async () => {
+            setLoadingAccounts(true);
+            setAccountsError("");
+
+            try {
+                const response = await getActiveAccountsPaged(user.userId, page, pageSize, sortBy, direction);
+
+                setAccountsPage(response);
+            } catch (err) {
+                setAccountsError(err.message);
+            } finally {
+                setLoadingAccounts(false);
+            }
+        };
+
+        loadPagedAccounts();
+    }, [user?.userId, page, pageSize, sortBy, direction]);
+
+    useEffect(() => {
+        if (!user?.userId) {
+            return;
+        }
+
+        const loadTransactions = async () => {
+            setLoadingTransactions(true);
+            setTransactionsError("");
+
+            try {
+                const response = await getUserTransactionsPaged(user.userId, transactionsPageNumber, transactionsPageSize, transactionsSortBy, transactionsDirection);
+
+                setTransactionsPage(response);
+            } catch (err) {
+                setTransactionsError(err.message);
+            } finally {
+                setLoadingTransactions(false);
+            }
+        };
+
+        loadTransactions();
+    }, [user?.userId, transactionsPageNumber, transactionsPageSize, transactionsSortBy, transactionsDirection]);
 
     const handleLogout = () => {
         removeLoggedUser();
         navigate("/login");
     };
+
+    const handleSortByChange = (event) => {
+        setSortBy(event.target.value);
+        setPage(0);
+    };
+
+    const handleDirectionChange = (event) => {
+        setDirection(event.target.value);
+        setPage(0);
+    };
+
+    const handlePageSizeChange = (newPageSize) => {
+        setPageSize(newPageSize);
+        setPage(0);
+    };
+
+    const handleTransactionsSortByChange = (event) => {
+        setTransactionsSortBy(event.target.value);
+        setTransactionsPageNumber(0);
+    };
+
+    const handleTransactionsDirectionChange = (event) => {
+        setTransactionsDirection(event.target.value);
+        setTransactionsPageNumber(0);
+    };
+
+    const handleTransactionsPageSizeChange = (newPageSize) => {
+        setTransactionsPageSize(newPageSize);
+        setTransactionsPageNumber(0);
+    };
+
+    if (!user) {
+        return (
+            <p>
+                User is not logged in.
+            </p>
+        );
+    }
 
     return (
         <div>
@@ -66,6 +190,34 @@ function UserDashboardPage() {
                 </p>
             )}
 
+            {loadingSummary && <p>Loading account summary...</p>}
+
+            {summaryError && (
+                <p style={{ color: "red" }}>
+                    {summaryError}
+                </p>
+            )}
+
+            {!loadingSummary && !summaryError && accountSummary.length > 0 && (
+                <AccountCurrencySummary summary={accountSummary} />
+            )}
+
+            <div>
+                <label>Sort by: </label>
+
+                <select value={sortBy} onChange={handleSortByChange}>
+                    <option value="alias">Alias</option>
+                    <option value="balance">Balance</option>
+                </select>
+
+                <label> Direction: </label>
+
+                <select value={direction} onChange={handleDirectionChange}>
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                </select>
+            </div>
+
             {loadingAccounts && <p>Loading accounts...</p>}
 
             {accountsError && (
@@ -74,33 +226,77 @@ function UserDashboardPage() {
                 </p>
             )}
 
-            {accounts.length > 0 && (
+            {!loadingAccounts && !accountsError && (
                 <>
-                    <AccountCurrencySummary accounts={accounts} />
+                    <AccountList accounts={accountsPage.content} />
 
-                    <div>
-                        <label>Filter by currency</label>
+                    {accountsPage.totalElements > 0 && (
+                        <>
+                            <p>
+                                Total accounts: {accountsPage.totalElements}
+                            </p>
 
-                        <select
-                            value={selectedCurrency}
-                            onChange={(event) => setSelectedCurrency(event.target.value)}
-                        >
-                            <option value="ALL">All</option>
-                            <option value="RON">RON</option>
-                            <option value="EUR">EUR</option>
-                            <option value="USD">USD</option>
-                        </select>
-                    </div>
+                            <PaginationControls
+                                pageNumber={accountsPage.pageNumber}
+                                totalPages={accountsPage.totalPages}
+                                first={accountsPage.first}
+                                last={accountsPage.last}
+                                pageSize={pageSize}
+                                pageSizeOptions={[2, 4, 6]}
+                                onPageChange={setPage}
+                                onPageSizeChange={handlePageSizeChange}
+                            />
+                        </>
+                    )}
                 </>
             )}
-
-            <AccountList accounts={filteredAccounts} />
 
             <hr />
 
             <h2>Recent Transactions</h2>
 
-            <p>Last 5 transactions will be displayed here.</p>
+            <div>
+                <label>Sort by: </label>
+
+                <select value={transactionsSortBy} onChange={handleTransactionsSortByChange}>
+                    <option value="createdAt">Date</option>
+                    <option value="amount">Amount</option>
+                </select>
+
+                <label> Direction: </label>
+
+                <select value={transactionsDirection} onChange={handleTransactionsDirectionChange}>
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                </select>
+            </div>
+
+            {loadingTransactions && <p>Loading transactions...</p>}
+
+            {transactionsError && (
+                <p style={{ color: "red" }}>
+                    {transactionsError}
+                </p>
+            )}
+
+            {!loadingTransactions && !transactionsError && (
+                <>
+                    <TransactionList transactions={transactionsPage.content} />
+
+                    {transactionsPage.totalElements > 0 && (
+                        <PaginationControls
+                            pageNumber={transactionsPage.pageNumber}
+                            totalPages={transactionsPage.totalPages}
+                            first={transactionsPage.first}
+                            last={transactionsPage.last}
+                            pageSize={transactionsPageSize}
+                            pageSizeOptions={[3, 5]}
+                            onPageChange={setTransactionsPageNumber}
+                            onPageSizeChange={handleTransactionsPageSizeChange}
+                        />
+                    )}
+                </>
+            )}
 
             <hr />
 
@@ -128,7 +324,9 @@ function UserDashboardPage() {
                 </li>
 
                 <li>
-                    Categories Management (Coming soon)
+                    <Link to="/categories">
+                        Categories Management
+                    </Link>
                 </li>
             </ul>
 

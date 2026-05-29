@@ -1,9 +1,6 @@
 package com.example.demo.controllers;
 
-import com.example.demo.dto.AccountDetailsDTO;
-import com.example.demo.dto.AccountResponseDTO;
-import com.example.demo.dto.AccountSummaryDTO;
-import com.example.demo.dto.CreateSingleAccountRequestDTO;
+import com.example.demo.dto.*;
 import com.example.demo.services.AccountService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,13 +28,33 @@ public class AccountController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{accountId}")
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponseDTO<AccountSummaryDTO>> getActiveAccountsForUserPaged(
+            @RequestParam int userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "2") int size,
+            @RequestParam(defaultValue = "alias") String sortBy,
+            @RequestParam(defaultValue = "asc") String direction
+    ) {
+        PageResponseDTO<AccountSummaryDTO> response = accountService.getActiveAccountsForUserPaged(userId, page, size, sortBy, direction);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/summary/currency")
+    public ResponseEntity<List<AccountCurrencySummaryDTO>> getAccountCurrencySummary(@RequestParam int userId) {
+        List<AccountCurrencySummaryDTO> response = accountService.getAccountCurrencySummary(userId);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{accountId:\\d+}")
     public ResponseEntity<AccountDetailsDTO> getAccountDetails(@PathVariable Long accountId, @RequestParam int userId) {
         AccountDetailsDTO response = accountService.getAccountDetails(accountId, userId);
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{accountId}/close")
+    @PutMapping("/{accountId:\\d+}/close")
     public ResponseEntity<Void> closeAccount(@PathVariable Long accountId, @RequestParam int userId) {
         accountService.closeAccount(accountId, userId);
         return ResponseEntity.ok().build();

@@ -3,6 +3,7 @@ package com.example.demo.controllers;
 import com.example.demo.dto.CardResponseDTO;
 import com.example.demo.dto.CategoryRequestDTO;
 import com.example.demo.dto.CategoryResponseDTO;
+import com.example.demo.dto.PageResponseDTO;
 import com.example.demo.services.CategoryService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -57,5 +58,16 @@ public class CategoryController {
             @Valid @RequestBody  CategoryRequestDTO categoryRequestDTO
     ){
         categoryService.updateCategory(userId, categoryId, categoryRequestDTO);
+    }
+
+    @GetMapping("/paged")
+    public PageResponseDTO<CategoryResponseDTO> getAvailableCategoriesPaged(
+            @PathVariable Integer userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "3") int size,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String direction
+    ) {
+        return categoryService.getAvailableCategoriesPaged(userId, page, size, sortBy, direction);
     }
 }

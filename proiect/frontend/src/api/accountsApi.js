@@ -63,3 +63,26 @@ export async function closeAccount(accountId, userId) {
         throw new Error(message);
     }
 }
+
+export async function getActiveAccountsPaged(userId, page, size, sortBy, direction) {
+    const params = new URLSearchParams({userId, page, size, sortBy, direction,});
+    const response = await fetch(`${BASE_URL}/paged?${params.toString()}`);
+
+    if (!response.ok) {
+        const message = await getErrorMessage(response, "Could not load paged accounts.");
+        throw new Error(message);
+    }
+
+    return response.json();
+}
+
+export async function getAccountCurrencySummary(userId) {
+    const response = await fetch(`${BASE_URL}/summary/currency?userId=${userId}`);
+
+    if (!response.ok) {
+        const message = await getErrorMessage(response, "Could not load account summary.");
+        throw new Error(message);
+    }
+
+    return response.json();
+}

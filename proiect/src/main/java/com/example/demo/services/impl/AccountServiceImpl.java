@@ -4,10 +4,7 @@ import com.example.demo.domain.Account;
 import com.example.demo.domain.AccountAccess;
 import com.example.demo.domain.Transaction;
 import com.example.demo.domain.User;
-import com.example.demo.dto.AccountDetailsDTO;
-import com.example.demo.dto.AccountResponseDTO;
-import com.example.demo.dto.AccountSummaryDTO;
-import com.example.demo.dto.CreateSingleAccountRequestDTO;
+import com.example.demo.dto.*;
 import com.example.demo.mappers.AccountMapper;
 import com.example.demo.repositories.AccountAccessRepository;
 import com.example.demo.repositories.AccountRepository;
@@ -16,6 +13,10 @@ import com.example.demo.repositories.UserRepository;
 import com.example.demo.services.AccountService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -180,5 +181,64 @@ public class AccountServiceImpl implements AccountService {
         account.setUpdatedAt(new Date());
 
         accountRepository.save(account);
+    }
+
+    @Override
+    public PageResponseDTO<AccountSummaryDTO> getActiveAccountsForUserPaged(int userId, int page, int size, String sortBy, String direction) {
+        validateActiveUser(userId);
+
+        Pageable pageable = PageRequest.of(page, size, createAccountSort(sortBy, direction));
+
+        Page<AccountAccess> accountAccessPage = accountAccessRepository.findActiveAccountsForUser(userId, pageable);
+
+        List<AccountSummaryDTO> accounts = accountAccessPage.getContent()
+                .stream()
+                .map(access -> accountMapper.toAccountSummaryDTO(access.getAccount(), access))
+                .toList();
+
+        return new PageResponseDTO<>(
+                accounts,
+                accountAccessPage.getNumber(),
+                accountAccessPage.getSize(),
+                accountAccessPage.getTotalElements(),
+                accountAccessPage.getTotalPages(),
+                accountAccessPage.isFirst(),
+                accountAccessPage.isLast()
+        );
+    }
+
+    @Override
+    public List<AccountCurrencySummaryDTO> getAccountCurrencySummary(int userId) {
+        validateActiveUser(userId);
+        return accountAccessRepository.getCurrencySummaryForUser(userId);
+    }
+
+    private void validateActiveUser(int userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found!"));
+
+        if (!"ACTIVE".equals(user.getStatus())) {
+            throw new IllegalArgumentException("User is not active!");
+        }
+    }
+
+    private Sort createAccountSort(String sortBy, String direction) {
+        String sortProperty = switch (sortBy) {
+            case "alias" -> "account.alias";
+            case "balance" -> "account.balance";
+            default -> throw new IllegalArgumentException("Invalid account sort field!");
+        };
+
+        Sort.Direction sortDirection;
+
+        if ("asc".equalsIgnoreCase(direction)) {
+            sortDirection = Sort.Direction.ASC;
+        } else if ("desc".equalsIgnoreCase(direction)) {
+            sortDirection = Sort.Direction.DESC;
+        } else {
+            throw new IllegalArgumentException("Invalid sort direction!");
+        }
+
+        return Sort.by(sortDirection, sortProperty);
     }
 }

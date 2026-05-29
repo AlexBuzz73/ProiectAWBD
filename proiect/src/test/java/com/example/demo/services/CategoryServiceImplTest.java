@@ -88,9 +88,9 @@ class CategoryServiceImplTest {
                 .thenReturn(List.of(systemCategory));
         when(categoryRepository.findByCreatedByUserUserIdAndStatus(1, "ACTIVE"))
                 .thenReturn(List.of(userCategory));
-        when(categoryMapper.toCategoryResponseDTO(systemCategory, "N"))
+        when(categoryMapper.toCategoryResponseDTO(systemCategory))
                 .thenReturn(systemResponse);
-        when(categoryMapper.toCategoryResponseDTO(userCategory, "Y"))
+        when(categoryMapper.toCategoryResponseDTO(userCategory))
                 .thenReturn(userResponse);
 
         List<CategoryResponseDTO> result = categoryService.getAvailableCategories(1);
@@ -140,7 +140,7 @@ class CategoryServiceImplTest {
         when(categoryRepository.existsByNameAndCreatedByUserUserIdAndStatus("Travel", 1, "ACTIVE"))
                 .thenReturn(false);
         when(categoryRepository.save(any(Category.class))).thenReturn(savedCategory);
-        when(categoryMapper.toCategoryResponseDTO(savedCategory, "Y")).thenReturn(responseDTO);
+        when(categoryMapper.toCategoryResponseDTO(savedCategory)).thenReturn(responseDTO);
 
         CategoryResponseDTO result = categoryService.createCategory(1, requestDTO);
 
@@ -264,7 +264,7 @@ class CategoryServiceImplTest {
 
         when(userRepository.findById(1)).thenReturn(Optional.of(user));
         when(categoryRepository.findById(2)).thenReturn(Optional.of(userCategory));
-        when(categoryMapper.toCategoryResponseDTO(userCategory, "Y")).thenReturn(responseDTO);
+        when(categoryMapper.toCategoryResponseDTO(userCategory)).thenReturn(responseDTO);
 
         CategoryResponseDTO result = categoryService.getCategory(1, 2);
 

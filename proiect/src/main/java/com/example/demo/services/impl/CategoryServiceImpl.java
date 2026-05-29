@@ -4,11 +4,16 @@ import com.example.demo.domain.Category;
 import com.example.demo.domain.User;
 import com.example.demo.dto.CategoryRequestDTO;
 import com.example.demo.dto.CategoryResponseDTO;
+import com.example.demo.dto.PageResponseDTO;
 import com.example.demo.mappers.CategoryMapper;
 import com.example.demo.repositories.CategoryRepository;
 import com.example.demo.repositories.UserRepository;
 import com.example.demo.services.CategoryService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -33,12 +38,11 @@ public class CategoryServiceImpl implements CategoryService {
 
         List<CategoryResponseDTO> categoryResponseDTOList = new ArrayList<>();
 
-        systemCategories.forEach(category -> categoryResponseDTOList.add(categoryMapper.toCategoryResponseDTO(category, "N")) );
+        systemCategories.forEach(category -> categoryResponseDTOList.add(categoryMapper.toCategoryResponseDTO(category)));
 
-        userCategories.forEach(category -> categoryResponseDTOList.add(categoryMapper.toCategoryResponseDTO(category, "Y")) );
+        userCategories.forEach(category -> categoryResponseDTOList.add(categoryMapper.toCategoryResponseDTO(category)));
 
         return categoryResponseDTOList;
-
     }
 
     @Override
@@ -68,7 +72,7 @@ public class CategoryServiceImpl implements CategoryService {
 
         Category savedCategory = categoryRepository.save(category);
 
-        return categoryMapper.toCategoryResponseDTO(savedCategory, "Y");
+        return categoryMapper.toCategoryResponseDTO(savedCategory);
     }
 
     @Override
@@ -118,6 +122,73 @@ public class CategoryServiceImpl implements CategoryService {
 
         Category category = categoryRepository.findById(categoryId).orElseThrow(() -> new RuntimeException("Category not found"));
 
-        return  categoryMapper.toCategoryResponseDTO(category, "Y");
+        return  categoryMapper.toCategoryResponseDTO(category);
+    }
+
+    @Override
+    public PageResponseDTO<CategoryResponseDTO> getAvailableCategoriesPaged(Integer userId, int page, int size, String sortBy, String direction) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!"ACTIVE".equals(user.getStatus())) {
+            throw new IllegalArgumentException("User is not active!");
+        }
+
+        Pageable pageable = createCategoryPageable(page, size, sortBy, direction);
+
+        Page<Category> categoryPage = getCategoryPage(userId, sortBy, direction, pageable);
+
+        List<CategoryResponseDTO> categories = categoryPage.getContent()
+                .stream()
+                .map(category -> categoryMapper.toCategoryResponseDTO(category))
+                .toList();
+
+        return new PageResponseDTO<>(
+                categories,
+                categoryPage.getNumber(),
+                categoryPage.getSize(),
+                categoryPage.getTotalElements(),
+                categoryPage.getTotalPages(),
+                categoryPage.isFirst(),
+                categoryPage.isLast()
+        );
+    }
+
+    private Pageable createCategoryPageable(int page, int size, String sortBy, String direction) {
+        if ("name".equals(sortBy)) {
+            Sort.Direction sortDirection;
+
+            if ("asc".equalsIgnoreCase(direction)) {
+                sortDirection = Sort.Direction.ASC;
+            } else if ("desc".equalsIgnoreCase(direction)) {
+                sortDirection = Sort.Direction.DESC;
+            } else {
+                throw new IllegalArgumentException("Invalid sort direction!");
+            }
+
+            return PageRequest.of(page, size, Sort.by(sortDirection, "name"));
+        }
+
+        if ("usageCount".equals(sortBy)) {
+            return PageRequest.of(page, size);
+        }
+
+        throw new IllegalArgumentException("Invalid category sort field!");
+    }
+
+    private Page<Category> getCategoryPage(Integer userId, String sortBy, String direction, Pageable pageable) {
+        if ("name".equals(sortBy)) {
+            return categoryRepository.findAvailableCategories(userId, pageable);
+        }
+
+        if ("usageCount".equals(sortBy) && "asc".equalsIgnoreCase(direction)) {
+            return categoryRepository.findAvailableCategoriesOrderByUsageCountAsc(userId, pageable);
+        }
+
+        if ("usageCount".equals(sortBy) && "desc".equalsIgnoreCase(direction)) {
+            return categoryRepository.findAvailableCategoriesOrderByUsageCountDesc(userId, pageable);
+        }
+
+        throw new IllegalArgumentException("Invalid category sort option!");
     }
 }

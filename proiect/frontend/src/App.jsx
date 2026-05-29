@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import NewAccountPage from "./pages/user/NewAccountPage.jsx";
 import SingleAccountCreatePage from "./pages/user/SingleAccountCreatePage.jsx";
 import AccountDetailsPage from "./pages/user/AccountDetailsPage.jsx";
+import CategoriesPage from "./pages/user/CategoriesPage.jsx";
 
 function App() {
     return (
@@ -47,6 +48,13 @@ function App() {
                 element={
                     <ProtectedRoute requiredRole="USER">
                         <AccountDetailsPage />
+                    </ProtectedRoute>
+                }
+            />
+            <Route path="/categories"
+                element={
+                    <ProtectedRoute requiredRole="USER">
+                        <CategoriesPage />
                     </ProtectedRoute>
                 }
             />

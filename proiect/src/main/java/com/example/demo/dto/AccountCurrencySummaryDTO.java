@@ -1,0 +1,17 @@
+package com.example.demo.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class AccountCurrencySummaryDTO {
+
+    private String currency;
+    private Double totalBalance;
+    private Long accountCount;
+}

@@ -6,11 +6,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class CategoryMapper {
-    public CategoryResponseDTO toCategoryResponseDTO(Category category, String isSystem) {
+    public CategoryResponseDTO toCategoryResponseDTO(Category category) {
         CategoryResponseDTO categoryResponseDTO = new CategoryResponseDTO();
         categoryResponseDTO.setCategoryId(category.getCategoryId());
         categoryResponseDTO.setName(category.getName());
-        categoryResponseDTO.setIsSystem(String.valueOf(isSystem));
+        categoryResponseDTO.setIsSystem(category.getIsSystem());
         categoryResponseDTO.setStatus(category.getStatus());
 
         return categoryResponseDTO;

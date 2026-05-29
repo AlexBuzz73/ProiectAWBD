@@ -1,17 +1,21 @@
 package com.example.demo.services.impl;
 
 import com.example.demo.domain.*;
-import com.example.demo.dto.CurrencyExchangeDTO;
-import com.example.demo.dto.OwnAccountTransferDTO;
-import com.example.demo.dto.PaymentRequestDTO;
+import com.example.demo.dto.*;
+import com.example.demo.mappers.TransactionMapper;
 import com.example.demo.repositories.*;
 import com.example.demo.services.TransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -37,6 +41,10 @@ public class TransactionServiceImpl implements TransactionService {
     private ExchangeRateRepository exchangeRateRepository;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private AccountAccessRepository accountAccessRepository;
+    @Autowired
+    private TransactionMapper transactionMapper;
 
     @Override
     @Transactional
@@ -306,5 +314,96 @@ public class TransactionServiceImpl implements TransactionService {
         t.setCreatedAt(new Date());
 
         return transactionRepository.save(t);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponseDTO<TransactionSummaryDTO> getTransactionsForUserPaged(int userId, int page, int size, String sortBy, String direction) {
+        validateActiveUser(userId);
+
+        Pageable pageable = PageRequest.of(page, size, createTransactionSort(sortBy, direction));
+
+        Page<Transaction> transactionPage = transactionRepository.findTransactionsForUserAccounts(userId, pageable);
+
+        List<TransactionSummaryDTO> transactions = transactionPage.getContent()
+                .stream()
+                .map(transaction -> transactionMapper.toTransactionSummaryDTO(transaction))
+                .toList();
+
+        return new PageResponseDTO<>(
+                transactions,
+                transactionPage.getNumber(),
+                transactionPage.getSize(),
+                transactionPage.getTotalElements(),
+                transactionPage.getTotalPages(),
+                transactionPage.isFirst(),
+                transactionPage.isLast()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponseDTO<TransactionSummaryDTO> getTransactionsForAccountPaged(Long accountId, int userId, int page, int size, String sortBy, String direction) {
+        validateActiveUser(userId);
+        validateUserAccessToAccount(accountId, userId);
+
+        Pageable pageable = PageRequest.of(page, size, createTransactionSort(sortBy, direction));
+
+        Page<Transaction> transactionPage = transactionRepository.findTransactionsForAccount(accountId, pageable);
+
+        List<TransactionSummaryDTO> transactions = transactionPage.getContent()
+                .stream()
+                .map(transaction -> transactionMapper.toTransactionSummaryDTO(transaction))
+                .toList();
+
+        return new PageResponseDTO<>(
+                transactions,
+                transactionPage.getNumber(),
+                transactionPage.getSize(),
+                transactionPage.getTotalElements(),
+                transactionPage.getTotalPages(),
+                transactionPage.isFirst(),
+                transactionPage.isLast()
+        );
+    }
+
+    private void validateActiveUser(int userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found!"));
+
+        if (!"ACTIVE".equals(user.getStatus())) {
+            throw new IllegalArgumentException("User is not active!");
+        }
+    }
+
+    private void validateUserAccessToAccount(Long accountId, int userId) {
+        AccountAccess accountAccess = accountAccessRepository
+                .findByAccountAccountIdAndUserUserIdAndStatus(accountId, userId, "ACTIVE")
+                .orElseThrow(() -> new IllegalArgumentException("You don't have access to this account!"));
+
+        if (!"ACTIVE".equals(accountAccess.getAccount().getStatus())) {
+            throw new IllegalArgumentException("Account is not active!");
+        }
+    }
+
+    private Sort createTransactionSort(String sortBy, String direction) {
+        String sortProperty = switch (sortBy) {
+            case "createdAt" -> "createdAt";
+            case "amount" -> "amount";
+            default -> throw new IllegalArgumentException("Invalid transaction sort field!");
+        };
+
+        Sort.Direction sortDirection;
+
+        if ("asc".equalsIgnoreCase(direction)) {
+            sortDirection = Sort.Direction.ASC;
+        } else if ("desc".equalsIgnoreCase(direction)) {
+            sortDirection = Sort.Direction.DESC;
+        } else {
+            throw new IllegalArgumentException("Invalid sort direction!");
+        }
+
+        return Sort.by(sortDirection, sortProperty)
+                .and(Sort.by(Sort.Direction.DESC, "transactionId"));
     }
 }
