@@ -1,6 +1,6 @@
 ## Flux management carduri
 
-Documentul descrie operatiunile de vizualizare si creare a cardurilor asociate conturilor bancare.
+Documentul descrie operatiunile de vizualizare, creare, blocare si deblocare a cardurilor asociate conturilor bancare.
 
 ### 1. Actori implicati
 - utilizator autentificat (`USER`)
@@ -12,10 +12,10 @@ Documentul descrie operatiunile de vizualizare si creare a cardurilor asociate c
 ### 3. Flux 1: vizualizare card asociat contului
 
 1. Utilizatorul acceseaza pagina de detalii a unui cont.
-2. Aplicatia verifica daca exista un card **activ** asociat contului respectiv.
+2. Aplicatia verifica daca exista un card asociat contului respectiv.
 
 #### Caz card existent
-3. Daca exista card **activ**:
+3. Daca exista card:
    - se afiseaza o imagine a cardului (fara date, doar ca design)
    - se afiseaza un mesaj informativ pentru utilizator, care sa contina si detaliile cardului:
 
@@ -25,7 +25,7 @@ Documentul descrie operatiunile de vizualizare si creare a cardurilor asociate c
       - statusul cardului
 
 #### Caz fara card
-4. Daca nu exista card activ:
+4. Daca nu exista card:
    - aplicatia afiseaza un buton "Comanda card"
 
 ### 4. Flux 2: creare card
@@ -36,7 +36,7 @@ Documentul descrie operatiunile de vizualizare si creare a cardurilor asociate c
 #### Validari
 - contul trebuie sa fie in status `ACTIVE`
 - utilizatorul nu trebuie sa aiba rol `VIEWER` pe cont (in caz contrar, butonul nu va fi afisat in interfata)
-- nu trebuie sa existe deja un card activ asociat contului
+- nu trebuie sa existe deja un card asociat contului
 
 #### Persistenta
 3. Se creeaza un rand in `CARDS`:
@@ -49,21 +49,41 @@ Documentul descrie operatiunile de vizualizare si creare a cardurilor asociate c
 
 4. Dupa creare, cardul devine vizibil in pagina de detalii a contului.
 
-### 5. Reguli de business
+### 5. Flux 3: blocare/deblocare card
 
-- un cont poate avea maximum un card activ
+1. Utilizatorul acceseaza pagina de detalii a contului.
+2. Daca exista un card asociat contului, sunt afisate informatiile cardului.
+
+#### Blocare card
+
+3. Daca statusul cardului este `ACTIVE` si utilizatorul are rol `OWNER` se afiseaza butonul de blocare card.
+4. Utilizatorul apasa butonul, iar sistemul modifica statusul cardului in `BLOCKED`.
+
+#### Deblocare card
+
+5. Daca statusul cardului este `BLOCKED` si utilizatorul are rol `OWNER` se afiseaza butonul de deblocare card.
+6. Utilizatorul apasa butonul, iar sistemul modifica statusul cardului in `ACTIVE`.
+
+#### Restrictii
+
+- pentru utilizatorii cu rol `VIEWER`, functionalitatea de blocare/deblocare carduri va fi ascunsa. Astfel, doar utilizatorii `OWNER` pot administra carduri.
+
+
+### 6. Reguli de business
+
+- un cont poate avea maximum un card asociat
 - cardul poate fi emis doar pentru un cont in status `ACTIVE`
-- utilizatorul cu rol `VIEWER` poate doar vizualiza datele contului, fara a putea comanda card (butonul nu va fi afisat in interfata)
-- daca exista deja un card activ, nu se mai afiseaza optiunea de creare a unui nou card, ci direct informatiile cardului
+- utilizatorul cu rol `VIEWER` poate doar vizualiza datele cardului, fara a putea comanda, bloca sau debloca un card
+- daca exista deja un card, nu se mai afiseaza optiunea de creare a unui nou card, ci direct informatiile cardului
 
-### 6. Entitati implicate
+### 7. Entitati implicate
 
 - `ACCOUNTS`
 - `ACCOUNT_ACCESS`
 - `CARDS`
 - `USERS`
 
-### 7. Statusuri relevante
+### 8. Statusuri relevante
 
 #### ACCOUNTS
 - `ACTIVE`
@@ -74,7 +94,7 @@ Documentul descrie operatiunile de vizualizare si creare a cardurilor asociate c
 - `BLOCKED`
 - `EXPIRED`
 
-### 8. Rezultat final
+### 9. Rezultat final
 
 - utilizatorul poate vizualiza cardul asociat unui cont
 - utilizatorul eligibil poate comanda un card nou pentru contul selectat
