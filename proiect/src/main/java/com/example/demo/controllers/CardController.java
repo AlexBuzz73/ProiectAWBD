@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 public class CardController {
     private final CardService cardService;
 
-
     public CardController(CardService cardService) {
         this.cardService = cardService;
     }
@@ -24,17 +23,12 @@ public class CardController {
     }
 
     @GetMapping
-    public CardResponseDTO getActiveCardForAccount(
+    public CardResponseDTO getCardForAccount(
             @PathVariable Integer userId,
             @PathVariable Long accountId
     ) {
-        return cardService.getActiveCardFromAccount(userId, accountId);
+        return cardService.getCardFromAccount(userId, accountId);
     }
-
-//    @GetMapping("/test")
-//    public String test() {
-//        return "merge";
-//    }
 
     @DeleteMapping("/{cardId}/delete")
     public void deleteCard(
@@ -44,24 +38,6 @@ public class CardController {
     ) {
         cardService.deleteCard(userId, accountId);
     }
-
-//    @PatchMapping("/{cardId}/block")
-//    public void blockCard(
-//            @PathVariable Integer userId,
-//            @PathVariable Long accountId,
-//            @PathVariable Integer cardId
-//    ) {
-//        cardService.blockCard(userId, accountId, cardId);
-//    }
-//
-//    @PatchMapping("/{cardId}/unblock")
-//    public void unblockCard(
-//            @PathVariable Integer userId,
-//            @PathVariable Long accountId,
-//            @PathVariable Integer cardId
-//    ) {
-//        cardService.unblockCard(userId, accountId, cardId);
-//    }
 
     @PatchMapping("/{cardId}/status/{status}")
     public void updateCard(

@@ -22,6 +22,7 @@ import java.util.Date;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -50,7 +51,6 @@ class CardControllerIntegrationTest {
     private Account activeAccount;
     private Account closedAccount;
     private Card activeCard;
-    private Card blockedCard;
 
     @BeforeEach
     void setUp() {
@@ -132,23 +132,13 @@ class CardControllerIntegrationTest {
         activeCard.setCreatedAt(new Date());
         activeCard.setUpdatedAt(new Date());
         activeCard = cardRepository.save(activeCard);
-
-        blockedCard = new Card();
-        blockedCard.setAccount(activeAccount);
-        blockedCard.setCardNumber("4987654321098765");
-        blockedCard.setType("DEBIT");
-        blockedCard.setExpirationDate(calendar.getTime());
-        blockedCard.setHolderName("teo");
-        blockedCard.setStatus("BLOCKED");
-        blockedCard.setCreatedAt(new Date());
-        blockedCard.setUpdatedAt(new Date());
-        blockedCard = cardRepository.save(blockedCard);
     }
 
     @Test
-    void getActiveCardForAccount_shouldReturnActiveCard() throws Exception {
+    void getCardForAccount_shouldReturnCard() throws Exception {
         mockMvc.perform(get("/api/users/" + activeUser.getUserId() + "/accounts/" + activeAccount.getAccountId() + "/card"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cardId", is(activeCard.getCardId())))
                 .andExpect(jsonPath("$.cardNumber", is("4123456789012345")))
                 .andExpect(jsonPath("$.type", is("DEBIT")))
                 .andExpect(jsonPath("$.holderName", is("teo")))
@@ -156,17 +146,27 @@ class CardControllerIntegrationTest {
     }
 
     @Test
-    void createCard_shouldReturnBadRequest_whenActiveCardAlreadyExists() throws Exception {
+    void getCardForAccount_shouldReturnEmptyBody_whenCardDoesNotExist() throws Exception {
+        cardRepository.delete(activeCard);
+
+        mockMvc.perform(get("/api/users/" + activeUser.getUserId()+ "/accounts/" + activeAccount.getAccountId() + "/card"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(""));
+    }
+
+    @Test
+    void createCard_shouldReturnBadRequest_whenCardAlreadyExists() throws Exception {
         mockMvc.perform(post("/api/users/" + activeUser.getUserId() + "/accounts/" + activeAccount.getAccountId() + "/card"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void createCard_shouldCreateCard_whenNoActiveCardExists() throws Exception {
+    void createCard_shouldCreateCard_whenNoCardExists() throws Exception {
         cardRepository.delete(activeCard);
 
         mockMvc.perform(post("/api/users/" + activeUser.getUserId() + "/accounts/" + activeAccount.getAccountId() + "/card"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cardId", notNullValue()))
                 .andExpect(jsonPath("$.cardNumber", notNullValue()))
                 .andExpect(jsonPath("$.type", is("DEBIT")))
                 .andExpect(jsonPath("$.holderName", is("teo")))
@@ -189,45 +189,43 @@ class CardControllerIntegrationTest {
 
     @Test
     void updateCard_shouldBlockActiveCard() throws Exception {
-        mockMvc.perform(patch("/api/users/" + activeUser.getUserId()
-                        + "/accounts/" + activeAccount.getAccountId()
-                        + "/card/" + activeCard.getCardId()
-                        + "/status/ACTIVE"))
+        mockMvc.perform(patch("/api/users/" + activeUser.getUserId() + "/accounts/" + activeAccount.getAccountId() + "/card/" + activeCard.getCardId() + "/status/BLOCKED"))
                 .andExpect(status().isOk());
 
         Card updatedCard = cardRepository.findById((long) activeCard.getCardId())
                 .orElseThrow();
 
-        org.junit.jupiter.api.Assertions.assertEquals("BLOCKED", updatedCard.getStatus());
+        assertEquals("BLOCKED", updatedCard.getStatus());
     }
 
     @Test
     void updateCard_shouldUnblockBlockedCard() throws Exception {
-        cardRepository.delete(activeCard);
+        activeCard.setStatus("BLOCKED");
+        activeCard = cardRepository.save(activeCard);
 
-        mockMvc.perform(patch("/api/users/" + activeUser.getUserId()
-                        + "/accounts/" + activeAccount.getAccountId()
-                        + "/card/" + blockedCard.getCardId()
-                        + "/status/BLOCKED"))
+        mockMvc.perform(patch("/api/users/" + activeUser.getUserId() + "/accounts/" + activeAccount.getAccountId() + "/card/" + activeCard.getCardId() + "/status/ACTIVE"))
                 .andExpect(status().isOk());
 
-        Card updatedCard = cardRepository.findById((long) blockedCard.getCardId())
+        Card updatedCard = cardRepository.findById((long) activeCard.getCardId())
                 .orElseThrow();
 
-        org.junit.jupiter.api.Assertions.assertEquals("ACTIVE", updatedCard.getStatus());
+        assertEquals("ACTIVE", updatedCard.getStatus());
     }
 
     @Test
-    void deleteCard_shouldCloseActiveCard() throws Exception {
-        mockMvc.perform(delete("/api/users/" + activeUser.getUserId()
-                        + "/accounts/" + activeAccount.getAccountId()
-                        + "/card/" + activeCard.getCardId()
-                        + "/delete"))
+    void updateCard_shouldReturnBadRequest_whenViewerTriesToBlockCard() throws Exception {
+        mockMvc.perform(patch("/api/users/" + viewerUser.getUserId() + "/accounts/" + activeAccount.getAccountId() + "/card/" + activeCard.getCardId() + "/status/BLOCKED"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deleteCard_shouldCloseCard() throws Exception {
+        mockMvc.perform(delete("/api/users/" + activeUser.getUserId() + "/accounts/" + activeAccount.getAccountId() + "/card/" + activeCard.getCardId() + "/delete"))
                 .andExpect(status().isOk());
 
         Card deletedCard = cardRepository.findById((long) activeCard.getCardId())
                 .orElseThrow();
 
-        org.junit.jupiter.api.Assertions.assertEquals("CLOSED", deletedCard.getStatus());
+        assertEquals("CLOSED", deletedCard.getStatus());
     }
 }

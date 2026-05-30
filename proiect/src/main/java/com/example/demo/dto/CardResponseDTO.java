@@ -14,6 +14,7 @@ import java.util.Date;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CardResponseDTO {
+    private int cardId;
     private String cardNumber;
     private String type;
     private Date expirationDate;

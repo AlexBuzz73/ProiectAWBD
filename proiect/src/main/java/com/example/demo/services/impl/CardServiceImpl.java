@@ -15,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Calendar;
+import java.util.Date;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -40,18 +42,11 @@ public class CardServiceImpl implements CardService {
             throw new IllegalArgumentException("Account is not active");
         }
 
-        AccountAccess accountAccess = accountAccessRepository
-                .findByAccountAccountIdAndUserUserIdAndStatus(accountId, userId, "ACTIVE")
-                .orElseThrow(() -> new IllegalArgumentException("User doesn't have acces to this acccount!"));
+        AccountAccess accountAccess = getActiveAccountAccess(accountId, userId);
+        validateUserCanManageCards(accountAccess);
 
-        if("VIEWER".equals(accountAccess.getAccessRole())) {
-            throw new IllegalArgumentException("Viewer user cannot create cards!");
-        }
-
-        boolean activeCardExists = cardRepository.existsCardByAccountAccountIdAndStatus(accountId, "ACTIVE");
-
-        if(activeCardExists) {
-            throw new IllegalArgumentException("Card already exists for this account!");
+        if (cardRepository.existsCardByAccountAccountId(accountId)) {
+            throw new IllegalArgumentException("A card already exists for this account!");
         }
 
         Card card = new Card();
@@ -69,6 +64,8 @@ public class CardServiceImpl implements CardService {
         card.setHolderName(holderName);
 
         card.setStatus("ACTIVE");
+        card.setCreatedAt(new Date());
+        card.setUpdatedAt(new Date());
 
         return cardMapper.toCardResponseDTO(cardRepository.save(card));
     }
@@ -87,19 +84,33 @@ public class CardServiceImpl implements CardService {
             throw new IllegalArgumentException("Account is not active");
         }
 
-        Card card = cardRepository.findCardByAccountAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new IllegalArgumentException("Card not found"));
+        AccountAccess accountAccess = getActiveAccountAccess(accountId, userId);
+        validateUserCanManageCards(accountAccess);
+
+        Card card = cardRepository.findById(Long.valueOf(cardId)).orElseThrow(() -> new IllegalArgumentException("Card not found!"));
+
+        if (!card.getAccount().getAccountId().equals(accountId)) {
+            throw new IllegalArgumentException("Card does not belong to this account!");
+        }
+
+        if (!"ACTIVE".equals(card.getStatus())) {
+            throw new IllegalArgumentException("Only active cards can be blocked!");
+        }
 
         card.setStatus("BLOCKED");
-        cardRepository.save(card);
+        card.setUpdatedAt(new Date());
 
+        cardRepository.save(card);
     }
 
     @Override
     public void updateCard(Integer userId, Long accountId, Integer cardId, String status) {
-        if("ACTIVE".equals(status)) {
+        if("BLOCKED".equals(status)) {
             blockCard(userId, accountId, cardId);
-        } else if("BLOCKED".equals(status)) {
+        } else if("ACTIVE".equals(status)) {
             unblockCard(userId, accountId, cardId);
+        } else {
+            throw new IllegalArgumentException("Invalid card status!");
         }
     }
 
@@ -116,9 +127,22 @@ public class CardServiceImpl implements CardService {
             throw new IllegalArgumentException("Account is not active");
         }
 
-        Card card = cardRepository.findCardByAccountAccountIdAndStatus(accountId, "BLOCKED").orElseThrow(() -> new IllegalArgumentException("Card not found"));
+        AccountAccess accountAccess = getActiveAccountAccess(accountId, userId);
+        validateUserCanManageCards(accountAccess);
+
+        Card card = cardRepository.findById(Long.valueOf(cardId)).orElseThrow(() -> new IllegalArgumentException("Card not found!"));
+
+        if (!card.getAccount().getAccountId().equals(accountId)) {
+            throw new IllegalArgumentException("Card does not belong to this account!");
+        }
+
+        if (!"BLOCKED".equals(card.getStatus())) {
+            throw new IllegalArgumentException("Only blocked cards can be unblocked!");
+        }
 
         card.setStatus("ACTIVE");
+        card.setUpdatedAt(new Date());
+
         cardRepository.save(card);
     }
 
@@ -157,15 +181,16 @@ public class CardServiceImpl implements CardService {
             throw new IllegalArgumentException("Account is not active");
         }
 
-        Card card = cardRepository.findCardByAccountAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new IllegalArgumentException("Card not found"));
+        Card card = cardRepository.findCardByAccountAccountId(accountId).orElseThrow(() -> new IllegalArgumentException("Card not found"));
 
         card.setStatus("CLOSED");
+        card.setUpdatedAt(new Date());
         cardRepository.save(card);
 
     }
 
     @Override
-    public CardResponseDTO getActiveCardFromAccount(Integer userId, Long accountId) {
+    public CardResponseDTO getCardFromAccount(Integer userId, Long accountId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if(!"ACTIVE".equals(user.getStatus())) {
@@ -178,8 +203,26 @@ public class CardServiceImpl implements CardService {
             throw new IllegalArgumentException("Account is not active");
         }
 
-        Card card = cardRepository.findCardByAccountAccountIdAndStatus(accountId, "ACTIVE").orElseThrow(() -> new IllegalArgumentException("Card not found"));
+        getActiveAccountAccess(accountId, userId);
 
-        return cardMapper.toCardResponseDTO(card);
+        Optional<Card> optionalCard = cardRepository.findCardByAccountAccountId(accountId);
+
+        if(optionalCard.isEmpty()) {
+            return null;
+        }
+
+        return cardMapper.toCardResponseDTO(optionalCard.get());
+    }
+
+    private AccountAccess getActiveAccountAccess(Long accountId, Integer userId) {
+        return accountAccessRepository
+                .findByAccountAccountIdAndUserUserIdAndStatus(accountId, userId, "ACTIVE")
+                .orElseThrow(() -> new IllegalArgumentException("User does not have access to this account!"));
+    }
+
+    private void validateUserCanManageCards(AccountAccess accountAccess) {
+        if (!"OWNER".equals(accountAccess.getAccessRole())) {
+            throw new IllegalArgumentException("Only the account owner can manage cards!");
+        }
     }
 }

@@ -5,6 +5,7 @@ import { closeAccount, getAccountDetails } from "../../api/accountsApi.js";
 import PaginationControls from "../../components/common/PaginationControls";
 import TransactionList from "../../components/transactions/TransactionList";
 import { getAccountTransactionsPaged } from "../../api/transactionsApi";
+import AccountCardSection from "../../components/cards/AccountCardSection.jsx";
 
 const EMPTY_TRANSACTIONS_PAGE = {
     content: [],
@@ -148,6 +149,13 @@ function AccountDetailsPage() {
                     <p>
                         <strong>Your role:</strong> {account.accountRole}
                     </p>
+
+                    <hr />
+
+                    <AccountCardSection
+                        userId={user.userId}
+                        account={account}
+                    />
 
                     <hr />
 

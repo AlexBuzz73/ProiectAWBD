@@ -192,7 +192,9 @@ class LimitServiceImplTest {
         when(userLimitRepository.findByUserUserIdAndStatus(1, "ACTIVE"))
                 .thenReturn(Optional.empty());
         when(userLimitRepository.save(any(UserLimit.class))).thenReturn(userLimit);
+        when(bankLimitRepository.findByStatus("ACTIVE")).thenReturn(Optional.of(bankLimit));
         when(limitMapper.toUserLimitResponseDTO(userLimit)).thenReturn(responseDTO);
+
 
         UserLimitResponseDTO result = limitService.updateUserLimits(1, requestDTO);
 
@@ -222,6 +224,7 @@ class LimitServiceImplTest {
         when(userLimitRepository.findByUserUserIdAndStatus(1, "ACTIVE"))
                 .thenReturn(Optional.of(userLimit));
         when(userLimitRepository.save(userLimit)).thenReturn(userLimit);
+        when(bankLimitRepository.findByStatus("ACTIVE")).thenReturn(Optional.of(bankLimit));
         when(limitMapper.toUserLimitResponseDTO(userLimit)).thenReturn(responseDTO);
 
         UserLimitResponseDTO result = limitService.updateUserLimits(1, requestDTO);
@@ -325,5 +328,24 @@ class LimitServiceImplTest {
         );
 
         assertEquals("User: Max Amount Per Transaction in Ron must be greater than zero!", exception.getMessage());
+    }
+
+    @Test
+    void updateUserLimits_shouldThrowException_whenUserLimitExceedsBankLimit() {
+        UserLimitRequestDTO requestDTO = new UserLimitRequestDTO(
+                new BigDecimal("6000"),
+                new BigDecimal("10000"),
+                new BigDecimal("5")
+        );
+
+        when(userRepository.findById(1)).thenReturn(Optional.of(user));
+        when(bankLimitRepository.findByStatus("ACTIVE")).thenReturn(Optional.of(bankLimit));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> limitService.updateUserLimits(1, requestDTO)
+        );
+
+        assertEquals("The maximum amount per transaction cannot exceed the bank limit!", exception.getMessage());
     }
 }

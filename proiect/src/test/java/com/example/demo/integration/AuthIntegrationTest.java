@@ -177,6 +177,6 @@ public class AuthIntegrationTest {
                .contentType(MediaType.APPLICATION_JSON)
                .content(invalidRegisterJson))
                .andExpect(status().isBadRequest())
-               .andExpect(content().string("First name is required!"));
+               .andExpect(jsonPath("$.['individual.firstName']").value("First name is required!"));
     }
 }

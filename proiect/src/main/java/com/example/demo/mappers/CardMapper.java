@@ -9,6 +9,7 @@ public class CardMapper {
 
     public CardResponseDTO toCardResponseDTO(Card card) {
         CardResponseDTO cardResponseDTO = new CardResponseDTO();
+        cardResponseDTO.setCardId(card.getCardId());
         cardResponseDTO.setCardNumber(card.getCardNumber());
         cardResponseDTO.setType(card.getType());
         cardResponseDTO.setExpirationDate(card.getExpirationDate());

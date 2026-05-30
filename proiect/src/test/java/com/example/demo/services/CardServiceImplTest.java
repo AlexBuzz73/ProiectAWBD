@@ -100,6 +100,7 @@ class CardServiceImplTest {
     @Test
     void createCard_shouldCreateCard_whenUserAndAccountAreValid() {
         CardResponseDTO responseDTO = new CardResponseDTO(
+                1,
                 "4123456789012345",
                 "DEBIT",
                 activeCard.getExpirationDate(),
@@ -111,7 +112,7 @@ class CardServiceImplTest {
         when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
         when(accountAccessRepository.findByAccountAccountIdAndUserUserIdAndStatus(10L, 1, "ACTIVE"))
                 .thenReturn(Optional.of(ownerAccess));
-        when(cardRepository.existsCardByAccountAccountIdAndStatus(10L, "ACTIVE"))
+        when(cardRepository.existsCardByAccountAccountId(10L))
                 .thenReturn(false);
         when(cardRepository.existsCardByCardNumber(anyString())).thenReturn(false);
         when(cardRepository.save(any(Card.class))).thenReturn(activeCard);
@@ -179,7 +180,7 @@ class CardServiceImplTest {
                 () -> cardService.createCard(1, 10L)
         );
 
-        assertEquals("Viewer user cannot create cards!", exception.getMessage());
+        assertEquals("Only the account owner can manage cards!", exception.getMessage());
     }
 
     @Test
@@ -188,7 +189,7 @@ class CardServiceImplTest {
         when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
         when(accountAccessRepository.findByAccountAccountIdAndUserUserIdAndStatus(10L, 1, "ACTIVE"))
                 .thenReturn(Optional.of(ownerAccess));
-        when(cardRepository.existsCardByAccountAccountIdAndStatus(10L, "ACTIVE"))
+        when(cardRepository.existsCardByAccountAccountId(10L))
                 .thenReturn(true);
 
         RuntimeException exception = assertThrows(
@@ -196,13 +197,14 @@ class CardServiceImplTest {
                 () -> cardService.createCard(1, 10L)
         );
 
-        assertEquals("Card already exists for this account!", exception.getMessage());
+        assertEquals("A card already exists for this account!", exception.getMessage());
         verify(cardRepository, never()).save(any(Card.class));
     }
 
     @Test
-    void getActiveCardFromAccount_shouldReturnCard_whenCardExists() {
+    void getCardFromAccount_shouldReturnCard_whenCardExists() {
         CardResponseDTO responseDTO = new CardResponseDTO(
+                1,
                 activeCard.getCardNumber(),
                 activeCard.getType(),
                 activeCard.getExpirationDate(),
@@ -212,65 +214,95 @@ class CardServiceImplTest {
 
         when(userRepository.findById(1)).thenReturn(Optional.of(user));
         when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
-        when(cardRepository.findCardByAccountAccountIdAndStatus(10L, "ACTIVE"))
-                .thenReturn(Optional.of(activeCard));
+        when(accountAccessRepository.findByAccountAccountIdAndUserUserIdAndStatus(10L, 1, "ACTIVE"))
+                .thenReturn(Optional.of(ownerAccess));
+        when(cardRepository.findCardByAccountAccountId(10L)).thenReturn(Optional.of(activeCard));
         when(cardMapper.toCardResponseDTO(activeCard)).thenReturn(responseDTO);
 
-        CardResponseDTO result = cardService.getActiveCardFromAccount(1, 10L);
+        CardResponseDTO result = cardService.getCardFromAccount(1, 10L);
 
         assertNotNull(result);
+        assertEquals(1, result.getCardId());
         assertEquals("ACTIVE", result.getStatus());
         assertEquals("4123456789012345", result.getCardNumber());
     }
 
     @Test
-    void getActiveCardFromAccount_shouldThrowException_whenCardNotFound() {
+    void getCardFromAccount_shouldReturnNull_whenCardDoesNotExist() {
         when(userRepository.findById(1)).thenReturn(Optional.of(user));
         when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
-        when(cardRepository.findCardByAccountAccountIdAndStatus(10L, "ACTIVE"))
-                .thenReturn(Optional.empty());
+        when(accountAccessRepository.findByAccountAccountIdAndUserUserIdAndStatus(10L, 1, "ACTIVE"))
+                .thenReturn(Optional.of(ownerAccess));
+        when(cardRepository.findCardByAccountAccountId(10L)).thenReturn(Optional.empty());
+
+        CardResponseDTO result = cardService.getCardFromAccount(1, 10L);
+
+        assertNull(result);
+    }
+
+    @Test
+    void updateCard_shouldBlockActiveCard_whenStatusIsBlocked() {
+        when(userRepository.findById(1)).thenReturn(Optional.of(user));
+        when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
+        when(accountAccessRepository.findByAccountAccountIdAndUserUserIdAndStatus(10L, 1, "ACTIVE"))
+                .thenReturn(Optional.of(ownerAccess));
+        when(cardRepository.findById(1L)).thenReturn(Optional.of(activeCard));
+
+        cardService.updateCard(1, 10L, 1, "BLOCKED");
+
+        assertEquals("BLOCKED", activeCard.getStatus());
+        verify(cardRepository).save(activeCard);
+    }
+
+    @Test
+    void updateCard_shouldUnblockBlockedCard_whenStatusIsActive() {
+        when(userRepository.findById(1)).thenReturn(Optional.of(user));
+        when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
+        when(accountAccessRepository.findByAccountAccountIdAndUserUserIdAndStatus(10L, 1, "ACTIVE"))
+                .thenReturn(Optional.of(ownerAccess));
+        when(cardRepository.findById(2L)).thenReturn(Optional.of(blockedCard));
+
+        cardService.updateCard(1, 10L, 2, "ACTIVE");
+
+        assertEquals("ACTIVE", blockedCard.getStatus());
+        verify(cardRepository).save(blockedCard);
+    }
+
+    @Test
+    void updateCard_shouldThrowException_whenStatusIsInvalid() {
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
+                () -> cardService.updateCard(1, 10L, 1, "EXPIRED")
+        );
+
+        assertEquals("Invalid card status!", exception.getMessage());
+    }
+
+    @Test
+    void updateCard_shouldThrowException_whenViewerTriesToBlockCard() {
+        when(userRepository.findById(1)).thenReturn(Optional.of(user));
+        when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
+        when(accountAccessRepository.findByAccountAccountIdAndUserUserIdAndStatus(10L, 1, "ACTIVE"))
+                .thenReturn(Optional.of(viewerAccess));
 
         RuntimeException exception = assertThrows(
                 RuntimeException.class,
-                () -> cardService.getActiveCardFromAccount(1, 10L)
+                () -> cardService.updateCard(1, 10L, 1, "BLOCKED")
         );
 
-        assertEquals("Card not found", exception.getMessage());
+        assertEquals("Only the account owner can manage cards!", exception.getMessage());
+        verify(cardRepository, never()).save(any(Card.class));
     }
 
     @Test
-    void updateCard_shouldBlockActiveCard_whenStatusIsActive() {
+    void deleteCard_shouldCloseCard() {
         when(userRepository.findById(1)).thenReturn(Optional.of(user));
         when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
-        when(cardRepository.findCardByAccountAccountIdAndStatus(10L, "ACTIVE"))
-                .thenReturn(Optional.of(activeCard));
-
-        cardService.updateCard(1, 10L, 1, "ACTIVE");
-
-        assertEquals("BLOCKED", activeCard.getStatus());
-    }
-
-    @Test
-    void updateCard_shouldUnblockBlockedCard_whenStatusIsBlocked() {
-        when(userRepository.findById(1)).thenReturn(Optional.of(user));
-        when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
-        when(cardRepository.findCardByAccountAccountIdAndStatus(10L, "BLOCKED"))
-                .thenReturn(Optional.of(blockedCard));
-
-        cardService.updateCard(1, 10L, 2, "BLOCKED");
-
-        assertEquals("ACTIVE", blockedCard.getStatus());
-    }
-
-    @Test
-    void deleteCard_shouldCloseActiveCard() {
-        when(userRepository.findById(1)).thenReturn(Optional.of(user));
-        when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
-        when(cardRepository.findCardByAccountAccountIdAndStatus(10L, "ACTIVE"))
-                .thenReturn(Optional.of(activeCard));
+        when(cardRepository.findCardByAccountAccountId(10L)).thenReturn(Optional.of(activeCard));
 
         cardService.deleteCard(1, 10L);
 
         assertEquals("CLOSED", activeCard.getStatus());
+        verify(cardRepository).save(activeCard);
     }
 }
