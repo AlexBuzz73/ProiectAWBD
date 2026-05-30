@@ -129,17 +129,17 @@ public class LimitServiceImpl implements LimitService {
     private void validateUserLimitsAgainstBankLimits(UserLimitRequestDTO userDto, BankLimit bankLimit) {
         if (userDto.getMaxAmountPerTransactionRon()
                 .compareTo(bankLimit.getMaxAmountPerTransactionRon()) > 0) {
-            throw new IllegalArgumentException("The user Max Amount Per Transaction in Ron is greater than the bank Max Amount Per Transaction in Ron!");
+            throw new IllegalArgumentException("The maximum amount per transaction cannot exceed the bank limit!");
         }
 
         if (userDto.getMaxDailyAmountRon()
                 .compareTo(bankLimit.getMaxDailyAmountRon()) > 0) {
-            throw new IllegalArgumentException("The user Max Daily Amount in Ron is greater than the bank Max Daily Amount in Ron!");
+            throw new IllegalArgumentException("The maximum daily amount cannot exceed the bank limit!");
         }
 
         if (userDto.getMaxDailyTransactionsCount()
                 .compareTo(bankLimit.getMaxDailyTransactionsCount()) > 0) {
-            throw new IllegalArgumentException("The user Max Daily Transactions is greater than the bank Max Daily Transactions!");
+            throw new IllegalArgumentException("The maximum number of daily transactions cannot exceed the bank limit!");
         }
     }
 
@@ -197,28 +197,6 @@ public class LimitServiceImpl implements LimitService {
         BigDecimal bankMaxDailyTransactionsCount = bankLimitRequestDTO.getMaxDailyTransactionsCount();
         if(bankMaxDailyTransactionsCount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Bank: Max Daily Transactions must be greater than zero!");
-        }
-    }
-
-    @Override
-    public void validateUserLimitsAgainstBankLimits(UserLimitRequestDTO userLimitRequestDTO, BankLimitRequestDTO bankLimitRequestDTO) {
-
-        BigDecimal bankMaxAmountPerTransactionRon = bankLimitRequestDTO.getMaxAmountPerTransactionRon();
-        BigDecimal userMaxAmountPerTransactionRon = userLimitRequestDTO.getMaxAmountPerTransactionRon();
-        if( userMaxAmountPerTransactionRon.compareTo(bankMaxAmountPerTransactionRon) > 0) {
-            throw new IllegalArgumentException("The user Max Amount Per Transaction in Ron is greater than the bank Max Amount Per Transaction in Ron!");
-        }
-
-        BigDecimal bankMaxDailyAmountRon = bankLimitRequestDTO.getMaxDailyAmountRon();
-        BigDecimal userMaxDailyAmountRon = userLimitRequestDTO.getMaxDailyAmountRon();
-        if( userMaxDailyAmountRon.compareTo(bankMaxDailyAmountRon) <= 0) {
-            throw new IllegalArgumentException("The user Max Daily Amount in Ron is greater than the bank Max Daily Amount in Ron!");
-        }
-
-        BigDecimal bankMaxDailyTransactionsCount = bankLimitRequestDTO.getMaxDailyTransactionsCount();
-        BigDecimal userMaxDailyTransactionsCount = userLimitRequestDTO.getMaxDailyTransactionsCount();
-        if( userMaxDailyTransactionsCount.compareTo(bankMaxDailyTransactionsCount) <= 0) {
-            throw new IllegalArgumentException("The user Max Daily Transactions is greater than the bank Max Daily Transactions!");
         }
     }
 

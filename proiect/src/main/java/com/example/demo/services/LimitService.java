@@ -18,7 +18,6 @@ public interface LimitService {
     UserLimitResponseDTO updateUserLimits(Integer userId, UserLimitRequestDTO userLimitRequestDTO);
     void validateRequiredFields(UserLimitRequestDTO userLimitRequestDTO, BankLimitRequestDTO bankLimitRequestDTO);
     void validatePositiveValues(UserLimitRequestDTO userLimitRequestDTO, BankLimitRequestDTO bankLimitRequestDTO);
-    void validateUserLimitsAgainstBankLimits(UserLimitRequestDTO userLimitRequestDTO, BankLimitRequestDTO bankLimitRequestDTO);
     void validateUserActive(User user);
     void validateBankLimitsActive(BankLimit bankLimit);
 

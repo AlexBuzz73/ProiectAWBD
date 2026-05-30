@@ -9,6 +9,7 @@ import NewAccountPage from "./pages/user/NewAccountPage.jsx";
 import SingleAccountCreatePage from "./pages/user/SingleAccountCreatePage.jsx";
 import AccountDetailsPage from "./pages/user/AccountDetailsPage.jsx";
 import CategoriesPage from "./pages/user/CategoriesPage.jsx";
+import UserLimitsPage from "./pages/user/UserLimitsPage.jsx";
 
 function App() {
     return (
@@ -57,6 +58,13 @@ function App() {
                         <CategoriesPage />
                     </ProtectedRoute>
                 }
+            />
+            <Route path="/user-limits"
+                   element={
+                       <ProtectedRoute requiredRole="USER">
+                           <UserLimitsPage />
+                       </ProtectedRoute>
+                   }
             />
             <Route path="*" element={<NotFoundPage />} />
         </Routes>
