@@ -3,6 +3,7 @@ package com.example.demo.services;
 import com.example.demo.domain.ExchangeRate;
 import com.example.demo.repositories.ExchangeRateRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -31,6 +32,7 @@ import java.util.Set;
  * (DataSet/Body/Cube[@date]/Rate[@currency][@multiplier]) - verifica un raspuns real
  * inainte sa consideri jobul gata de demo.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ExchangeRateUpdateJob {
@@ -47,7 +49,7 @@ public class ExchangeRateUpdateJob {
         try {
             String xml = restTemplate.getForObject(BNR_URL, String.class);
             if (xml == null) {
-                System.err.println("Job cursuri valutare: raspuns gol de la BNR.");
+                log.warn("ExchangeRateUpdateJob: raspuns gol de la BNR.");
                 return;
             }
 
@@ -55,7 +57,7 @@ public class ExchangeRateUpdateJob {
 
             NodeList cubeList = document.getElementsByTagName("Cube");
             if (cubeList.getLength() == 0) {
-                System.err.println("Job cursuri valutare: format XML neasteptat (lipseste elementul Cube).");
+                log.warn("ExchangeRateUpdateJob: format XML neasteptat (lipseste elementul Cube).");
                 return;
             }
             Element cube = (Element) cubeList.item(0);
@@ -82,9 +84,9 @@ public class ExchangeRateUpdateJob {
                 }
             }
 
-            System.out.println("Job: cursuri valutare BNR procesate pentru " + rateDate + " (" + saved + " curs/uri noi salvate).");
+            log.info("ExchangeRateUpdateJob: cursuri valutare BNR procesate pentru {} ({} curs/uri noi salvate).", rateDate, saved);
         } catch (Exception e) {
-            System.err.println("Job cursuri valutare: eroare la actualizare - " + e.getMessage());
+            log.error("ExchangeRateUpdateJob: eroare la actualizare - {}", e.getMessage(), e);
         }
     }
 

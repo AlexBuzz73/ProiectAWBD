@@ -38,3 +38,6 @@ out/
 
 # Vite cache
 frontend/.vite/
+
+logs/
+   *.log

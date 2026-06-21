@@ -12,12 +12,14 @@ import com.example.demo.repositories.UserRepository;
 import com.example.demo.services.AuthService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Calendar;
 import java.util.Date;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -93,6 +95,7 @@ public class AuthServiceImpl implements AuthService {
         user.setUpdatedAt(new Date());
         user.setIndividual(savedIndividual);
         userRepository.save(user);
+        log.info("Utilizator nou inregistrat: username={}, email={}", user.getUsername(), user.getEmail());
     }
 
     private void validateUserRegistrationData(UserRegistrationDTO userDto) {
@@ -140,6 +143,7 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("Invalid email or password!"));
 
         if ("BLOCKED".equals(user.getStatus())) {
+            log.warn("Incercare de login pe cont blocat: email={}", loginRequestDTO.getEmail());
             throw new IllegalArgumentException("Your account is blocked! Please contact the bank!");
         }
         else if ("CLOSED".equals(user.getStatus())) {
@@ -156,6 +160,8 @@ public class AuthServiceImpl implements AuthService {
         user.setUpdatedAt(new Date());
         userRepository.save(user);
 
+        log.info("Login reusit: userId={}, email={}", user.getUserId(), user.getEmail());
+
         return authMapper.toLoginResponseDTO(user);
     }
 
@@ -165,6 +171,9 @@ public class AuthServiceImpl implements AuthService {
 
         if (attempts >= 3) {
             user.setStatus("BLOCKED");
+            log.warn("Cont blocat dupa {} incercari esuate de login: email={}", attempts, user.getEmail());
+        } else {
+            log.warn("Login esuat ({}/3 incercari): email={}", attempts, user.getEmail());
         }
 
         user.setUpdatedAt(new Date());
@@ -181,6 +190,7 @@ public class AuthServiceImpl implements AuthService {
         user.setUpdatedAt(new Date());
 
         userRepository.save(user);
+        log.info("Admin: utilizator deblocat (dupa userId) - userId={}", userId);
     }
 
     @Override
@@ -193,5 +203,6 @@ public class AuthServiceImpl implements AuthService {
         user.setFailedLoginAttempts(0);
         user.setUpdatedAt(new Date());
         userRepository.save(user);
+        log.info("Admin: utilizator deblocat (dupa email) - email={}", email);
     }
 }

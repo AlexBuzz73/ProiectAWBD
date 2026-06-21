@@ -5,6 +5,7 @@ import com.example.demo.dto.*;
 import com.example.demo.mappers.TransactionMapper;
 import com.example.demo.repositories.*;
 import com.example.demo.services.TransactionService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,6 +19,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 public class TransactionServiceImpl implements TransactionService {
 
@@ -49,6 +51,9 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional
     public Transaction initiatePayment(PaymentRequestDTO dto, User user) {
+        log.debug("Initiere plata: userId={}, sourceAccountId={}, suma={}, tip={}",
+                user.getUserId(), dto.getSourceAccountId(), dto.getAmount(), dto.getProcessingType());
+
         if (!passwordEncoder.matches(dto.getPassword(), user.getPasswordHash())) {
             throw new IllegalArgumentException("Parolă incorectă!");
         }
@@ -147,6 +152,8 @@ public class TransactionServiceImpl implements TransactionService {
         if (sourceAccount.getBalance() < transaction.getAmount()) {
             transaction.setStatus("FAILED");
             transactionRepository.save(transaction);
+            log.warn("Autorizare esuata (fonduri insuficiente): transactionId={}, sold={}, suma={}",
+                    transactionId, sourceAccount.getBalance(), transaction.getAmount());
             throw new IllegalArgumentException("Fonduri insuficiente!");
         }
 
@@ -157,12 +164,14 @@ public class TransactionServiceImpl implements TransactionService {
             transaction.setStatus("AUTHORIZED");
             Transaction saved = transactionRepository.save(transaction);
             executeTransaction(saved.getTransactionId());
+            log.info("Plata urgenta {} autorizata si executata imediat.", transactionId);
             return transactionRepository.findById(saved.getTransactionId()).get();
         }
 
         // Plățile standard și cele programate trec în PENDING_EXECUTION după autorizare;
         // execuția propriu-zisă e preluată de joburile automate (PaymentJob / jobul zilnic de plăți programate).
         transaction.setStatus("PENDING_EXECUTION");
+        log.info("Plata {} autorizata, in asteptare de executie (PENDING_EXECUTION).", transactionId);
         return transactionRepository.save(transaction);
     }
 
@@ -190,6 +199,8 @@ public class TransactionServiceImpl implements TransactionService {
             transaction.setStatus("FAILED");
             transaction.setUpdatedAt(new Date());
             transactionRepository.save(transaction);
+            log.warn("Executie esuata pentru tranzactia {}: {}", transactionId,
+                    !"ACTIVE".equals(source.getStatus()) ? "cont inactiv" : "fonduri insuficiente");
             throw new IllegalArgumentException(!"ACTIVE".equals(source.getStatus()) ? "Cont inactiv" : "Fara bani");
         }
 
@@ -204,6 +215,7 @@ public class TransactionServiceImpl implements TransactionService {
         transaction.setStatus("EXECUTED");
         transaction.setUpdatedAt(new Date());
         transactionRepository.save(transaction);
+        log.info("Tranzactia {} executata cu succes (suma={}).", transactionId, transaction.getAmount());
     }
 
     @Override
@@ -272,6 +284,9 @@ public class TransactionServiceImpl implements TransactionService {
         t.setTransactionType("INTERNAL");
         t.setCreatedAt(new Date());
         t.setUpdatedAt(new Date());
+
+        log.info("Transfer intre conturi proprii reusit: userId={}, din contul {} in contul {}, suma={}",
+                user.getUserId(), source.getAccountId(), destination.getAccountId(), dto.getAmount());
 
         return transactionRepository.save(t);
     }
@@ -356,6 +371,9 @@ public class TransactionServiceImpl implements TransactionService {
         t.setStatus("EXECUTED");
         t.setTransactionType("EXCHANGE");
         t.setCreatedAt(new Date());
+
+        log.info("Schimb valutar reusit: userId={}, din contul {} in contul {}, suma={}, curs={}",
+                user.getUserId(), source.getAccountId(), destination.getAccountId(), dto.getAmount(), rate);
 
         return transactionRepository.save(t);
     }
