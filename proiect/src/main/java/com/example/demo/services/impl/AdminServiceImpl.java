@@ -5,11 +5,13 @@ import com.example.demo.dto.*;
 import com.example.demo.repositories.*;
 import com.example.demo.services.AdminService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminServiceImpl implements AdminService {
@@ -56,6 +58,9 @@ public class AdminServiceImpl implements AdminService {
             accountAccessRepository.save(access);
         }
 
+        log.info("Admin: cont partajat creat - accountId={}, alias={}, utilizatori={}",
+                savedAccount.getAccountId(), savedAccount.getAlias(), dto.getUsers().size());
+
         return savedAccount;
     }
 
@@ -73,6 +78,8 @@ public class AdminServiceImpl implements AdminService {
         limits.setUpdatedAt(new Date());
 
         bankLimitRepository.save(limits);
+        log.info("Admin: limite bancare globale actualizate - maxPerTranzactie={}, maxZilnic={}",
+                dto.getMaxAmountPerTransactionRon(), dto.getMaxDailyAmountRon());
     }
 
     @Override
@@ -87,6 +94,7 @@ public class AdminServiceImpl implements AdminService {
                     .filter(a -> "OWNER".equals(a.getAccessRole()) && "ACTIVE".equals(a.getStatus()))
                     .count();
             if (activeOwners <= 1) {
+                log.warn("Admin: revocare acces refuzata - {} ar ramane fara niciun OWNER activ (accountId={})", email, accountId);
                 throw new IllegalArgumentException("Operațiune refuzată: Trebuie să rămână cel puțin un OWNER activ pe cont.");
             }
         }
@@ -94,6 +102,7 @@ public class AdminServiceImpl implements AdminService {
         access.setStatus("INACTIVE");
         access.setUpdatedAt(new Date());
         accountAccessRepository.save(access);
+        log.info("Admin: acces revocat - accountId={}, email={}", accountId, email);
     }
 
     private String generateUniqueIban() {

@@ -3,6 +3,7 @@ package com.example.demo.services;
 import com.example.demo.domain.ScheduledPayment;
 import com.example.demo.repositories.ScheduledPaymentRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,7 @@ import java.util.List;
  * Ruleaza in fiecare zi la 01:00. Pentru a testa rapid in dev, se poate inlocui temporar
  * cron-ul cu un fixedDelay mai mic (ex: fixedDelay = 60000).
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ScheduledPaymentJob {
@@ -29,18 +31,21 @@ public class ScheduledPaymentJob {
         List<ScheduledPayment> duePayments = scheduledPaymentRepository
                 .findByStatusAndScheduledDateLessThanEqual("ACTIVE", new Date());
 
+        log.debug("ScheduledPaymentJob: {} plati programate ajunse la scadenta.", duePayments.size());
+
         for (ScheduledPayment scheduledPayment : duePayments) {
             try {
                 transactionService.executeTransaction(scheduledPayment.getTransaction().getTransactionId());
                 scheduledPayment.setStatus("EXECUTED");
                 scheduledPayment.setUpdatedAt(new Date());
                 scheduledPaymentRepository.save(scheduledPayment);
-                System.out.println("Job: Plata programata " + scheduledPayment.getScheduledPaymentId() + " a fost executata.");
+                log.info("ScheduledPaymentJob: plata programata {} a fost executata.", scheduledPayment.getScheduledPaymentId());
             } catch (Exception e) {
                 scheduledPayment.setStatus("FAILED");
                 scheduledPayment.setUpdatedAt(new Date());
                 scheduledPaymentRepository.save(scheduledPayment);
-                System.err.println("Job: Eroare la executia platii programate " + scheduledPayment.getScheduledPaymentId() + ": " + e.getMessage());
+                log.error("ScheduledPaymentJob: eroare la executia platii programate {}: {}",
+                        scheduledPayment.getScheduledPaymentId(), e.getMessage(), e);
             }
         }
     }
