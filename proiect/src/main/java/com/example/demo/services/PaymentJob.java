@@ -18,7 +18,7 @@ public class PaymentJob {
     public void processStandardPayments() {
 
         List<Transaction> pendingTransactions = transactionRepository
-                .findByStatusAndIsUrgentAndIsScheduled("AUTHORIZED", "NO", "NO");
+                .findByStatusAndIsUrgentAndIsScheduled("PENDING_EXECUTION", "NO", "NO");
 
         for (Transaction t : pendingTransactions) {
             try {
