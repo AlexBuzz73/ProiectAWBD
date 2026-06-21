@@ -4,7 +4,13 @@ import com.example.demo.domain.Account;
 import com.example.demo.domain.User;
 import com.example.demo.repositories.AccountAccessRepository;
 import com.example.demo.repositories.AccountRepository;
+import com.example.demo.repositories.CardRepository;
+import com.example.demo.repositories.CategoryRepository;
+import com.example.demo.repositories.ExchangeRateRepository;
+import com.example.demo.repositories.IndividualRepository;
+import com.example.demo.repositories.ScheduledPaymentRepository;
 import com.example.demo.repositories.TransactionRepository;
+import com.example.demo.repositories.UserLimitRepository;
 import com.example.demo.repositories.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,12 +47,39 @@ public class AccountIntegrationTest {
     @Autowired
     private TransactionRepository transactionRepository;
 
+    @Autowired
+    private CardRepository cardRepository;
+
+    @Autowired
+    private ScheduledPaymentRepository scheduledPaymentRepository;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    @Autowired
+    private UserLimitRepository userLimitRepository;
+
+    @Autowired
+    private ExchangeRateRepository exchangeRateRepository;
+
+    @Autowired
+    private IndividualRepository individualRepository;
+
+    // Baza H2 e impartita intre TOATE clasele de integrare dintr-o rulare de teste,
+    // de-asta curatam toate tabelele care ar putea referinta accounts/users, nu doar
+    // pe cele folosite direct aici.
     @BeforeEach
     void cleanDatabase() {
+        scheduledPaymentRepository.deleteAllInBatch();
         transactionRepository.deleteAllInBatch();
+        cardRepository.deleteAllInBatch();
         accountAccessRepository.deleteAllInBatch();
+        userLimitRepository.deleteAllInBatch();
+        categoryRepository.deleteAllInBatch();
+        exchangeRateRepository.deleteAllInBatch();
         accountRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
+        individualRepository.deleteAllInBatch();
     }
 
     @Test
