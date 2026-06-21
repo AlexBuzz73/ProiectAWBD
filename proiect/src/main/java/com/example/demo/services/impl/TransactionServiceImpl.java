@@ -50,13 +50,32 @@ public class TransactionServiceImpl implements TransactionService {
     @Transactional
     public Transaction initiatePayment(PaymentRequestDTO dto, User user) {
         if (!passwordEncoder.matches(dto.getPassword(), user.getPasswordHash())) {
-            throw new RuntimeException("Parolă incorectă!");
+            throw new IllegalArgumentException("Parolă incorectă!");
         }
 
         if (dto.getProcessingType().equalsIgnoreCase("PROGRAMAT")) {
             if (dto.getScheduledDate() == null || dto.getScheduledDate().before(new Date())) {
-                throw new RuntimeException("Pentru platile programate, data trebuie sa fie in viitor!");
+                throw new IllegalArgumentException("Pentru platile programate, data trebuie sa fie in viitor!");
             }
+        }
+
+        Account sourceAccount = accountRepository.findById(dto.getSourceAccountId().longValue())
+                .orElseThrow(() -> new IllegalArgumentException("Contul sursă nu a fost găsit."));
+
+        if (!"ACTIVE".equals(sourceAccount.getStatus())) {
+            throw new IllegalArgumentException("Contul sursă nu este activ!");
+        }
+
+        if (!sourceAccount.getCurrency().equals(dto.getCurrency())) {
+            throw new IllegalArgumentException("Valuta tranzacției trebuie să corespundă cu valuta contului sursă!");
+        }
+
+        AccountAccess accountAccess = accountAccessRepository
+                .findByAccountAccountIdAndUserUserIdAndStatus(dto.getSourceAccountId().longValue(), user.getUserId(), "ACTIVE")
+                .orElseThrow(() -> new IllegalArgumentException("Nu aveți acces la acest cont!"));
+
+        if ("VIEWER".equalsIgnoreCase(accountAccess.getAccessRole())) {
+            throw new IllegalArgumentException("Utilizatorii cu rol VIEWER nu pot iniția plăți!");
         }
 
         Optional<Account> destAccount = accountRepository.findByIban(dto.getDestinationIban());
@@ -70,13 +89,10 @@ public class TransactionServiceImpl implements TransactionService {
         transaction.setStatus("DRAFT");
         transaction.setCreatedAt(new Date());
         transaction.setUpdatedAt(new Date());
-
-        Account sourceAccount = accountRepository.findById(dto.getSourceAccountId().longValue())
-                .orElseThrow(() -> new RuntimeException("Contul sursă nu a fost găsit."));
         transaction.setSourceAccount(sourceAccount);
 
         transaction.setCategory(categoryRepository.findById(dto.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Categoria nu exista.")));
+                .orElseThrow(() -> new IllegalArgumentException("Categoria nu exista.")));
 
         if (destAccount.isPresent()) {
             transaction.setDestinationAccount(destAccount.get());
@@ -107,40 +123,47 @@ public class TransactionServiceImpl implements TransactionService {
             scheduledPaymentRepository.save(scheduled);
         }
 
-        return savedTransaction;
+        // Parola a fost deja validata mai sus; autorizam imediat tranzactia nou creata
+        // (DRAFT -> AUTHORIZED/PENDING_EXECUTION, si executie imediata daca e urgenta),
+        // altfel tranzactia ar ramane blocata in DRAFT la nesfarsit.
+        return authorizePayment(savedTransaction.getTransactionId(), dto.getPassword(), user);
     }
 
     @Override
     @Transactional
     public Transaction authorizePayment(int transactionId, String password, User user) {
         Transaction transaction = transactionRepository.findById(transactionId)
-                .orElseThrow(() -> new RuntimeException("Tranzactia nu a fost gasita"));
+                .orElseThrow(() -> new IllegalArgumentException("Tranzactia nu a fost gasita"));
 
         if (!"DRAFT".equals(transaction.getStatus())) {
-            throw new RuntimeException("Tranzactia nu este in status DRAFT!");
+            throw new IllegalArgumentException("Tranzactia nu este in status DRAFT!");
         }
 
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            throw new RuntimeException("Autorizare esuata: Parola incorecta!");
+            throw new IllegalArgumentException("Autorizare esuata: Parola incorecta!");
         }
 
         Account sourceAccount = transaction.getSourceAccount();
         if (sourceAccount.getBalance() < transaction.getAmount()) {
             transaction.setStatus("FAILED");
             transactionRepository.save(transaction);
-            throw new RuntimeException("Fonduri insuficiente!");
+            throw new IllegalArgumentException("Fonduri insuficiente!");
         }
 
         checkLimits(user, transaction.getAmount());
-        transaction.setStatus("AUTHORIZED");
         transaction.setUpdatedAt(new Date());
-        Transaction saved = transactionRepository.save(transaction);
 
-        if ("YES".equals(saved.getIsUrgent())) {
+        if ("YES".equals(transaction.getIsUrgent())) {
+            transaction.setStatus("AUTHORIZED");
+            Transaction saved = transactionRepository.save(transaction);
             executeTransaction(saved.getTransactionId());
             return transactionRepository.findById(saved.getTransactionId()).get();
         }
-        return saved;
+
+        // Plățile standard și cele programate trec în PENDING_EXECUTION după autorizare;
+        // execuția propriu-zisă e preluată de joburile automate (PaymentJob / jobul zilnic de plăți programate).
+        transaction.setStatus("PENDING_EXECUTION");
+        return transactionRepository.save(transaction);
     }
 
     private void checkLimits(User user, double amount) {
@@ -150,19 +173,25 @@ public class TransactionServiceImpl implements TransactionService {
             max = userLimit.get().getMaxAmountPerTransactionRon().doubleValue();
         } else {
             var bankLimit = bankLimitRepository.findAll().stream().findFirst()
-                    .orElseThrow(() -> new RuntimeException("Limite bancare lipsa!"));
+                    .orElseThrow(() -> new IllegalArgumentException("Limite bancare lipsa!"));
             max = bankLimit.getMaxAmountPerTransactionRon().doubleValue();
         }
-        if (amount > max) throw new RuntimeException("Limita depasita!");
+        if (amount > max) throw new IllegalArgumentException("Limita depasita!");
     }
 
     @Override
     @Transactional
     public void executeTransaction(int transactionId) {
-        Transaction transaction = transactionRepository.findById(transactionId).orElseThrow();
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new IllegalArgumentException("Tranzacția nu a fost găsită."));
         Account source = transaction.getSourceAccount();
-        if (!"ACTIVE".equals(source.getStatus())) throw new RuntimeException("Cont inactiv");
-        if (source.getBalance() < transaction.getAmount()) throw new RuntimeException("Fara bani");
+
+        if (!"ACTIVE".equals(source.getStatus()) || source.getBalance() < transaction.getAmount()) {
+            transaction.setStatus("FAILED");
+            transaction.setUpdatedAt(new Date());
+            transactionRepository.save(transaction);
+            throw new IllegalArgumentException(!"ACTIVE".equals(source.getStatus()) ? "Cont inactiv" : "Fara bani");
+        }
 
         source.setBalance(source.getBalance() - transaction.getAmount());
         accountRepository.save(source);
@@ -182,39 +211,46 @@ public class TransactionServiceImpl implements TransactionService {
     public Transaction transferBetweenOwnAccounts(OwnAccountTransferDTO dto, User user) {
 
         if (!passwordEncoder.matches(dto.getPassword(), user.getPasswordHash())) {
-            throw new RuntimeException("Parolă incorectă!");
+            throw new IllegalArgumentException("Parolă incorectă!");
         }
 
         Account source = accountRepository.findById(dto.getSourceAccountId().longValue())
-                .orElseThrow(() -> new RuntimeException("Contul sursă nu a fost găsit."));
+                .orElseThrow(() -> new IllegalArgumentException("Contul sursă nu a fost găsit."));
 
         Account destination = accountRepository.findById(dto.getDestinationAccountId().longValue())
-                .orElseThrow(() -> new RuntimeException("Contul destinație nu a fost găsit."));
+                .orElseThrow(() -> new IllegalArgumentException("Contul destinație nu a fost găsit."));
 
 
         if (!"ACTIVE".equals(source.getStatus()) || !"ACTIVE".equals(destination.getStatus())) {
-            throw new RuntimeException("Ambele conturi trebuie să fie ACTIVE.");
+            throw new IllegalArgumentException("Ambele conturi trebuie să fie ACTIVE.");
         }
         if (!source.getCurrency().equals(destination.getCurrency())) {
-            throw new RuntimeException("Conturile trebuie să aibă aceeași valută.");
+            throw new IllegalArgumentException("Conturile trebuie să aibă aceeași valută.");
         }
         if (source.getAccountId().equals(destination.getAccountId())) {
-            throw new RuntimeException("Contul sursă și cel destinație trebuie să fie diferite.");
+            throw new IllegalArgumentException("Contul sursă și cel destinație trebuie să fie diferite.");
         }
 
         boolean hasFullAccess = source.getAccountAccessList().stream()
-                .anyMatch(a -> a.getUser().getUserId() == user.getUserId()
+                .anyMatch(a -> a.getUser().getUserId().equals(user.getUserId())
                         && a.getAccessRole() != null
                         && !a.getAccessRole().equalsIgnoreCase("VIEWER"));
 
         if (!hasFullAccess) {
-            throw new RuntimeException("Nu aveți permisiunea de a efectua transferuri (rol insuficient).");
+            throw new IllegalArgumentException("Nu aveți permisiunea de a efectua transferuri (rol insuficient).");
+        }
+
+        boolean ownsDestination = destination.getAccountAccessList().stream()
+                .anyMatch(a -> a.getUser().getUserId().equals(user.getUserId()) && "ACTIVE".equals(a.getStatus()));
+
+        if (!ownsDestination) {
+            throw new IllegalArgumentException("Contul destinație trebuie să vă aparțină (transfer doar între conturile proprii).");
         }
 
         checkLimits(user, dto.getAmount());
 
         if (source.getBalance() < dto.getAmount()) {
-            throw new RuntimeException("Fonduri insuficiente.");
+            throw new IllegalArgumentException("Fonduri insuficiente.");
         }
 
         source.setBalance(source.getBalance() - dto.getAmount());
@@ -229,7 +265,8 @@ public class TransactionServiceImpl implements TransactionService {
         t.setDestinationIban(destination.getIban());
         t.setAmount(dto.getAmount());
         t.setCurrency(source.getCurrency());
-        t.setCategory(categoryRepository.findById(dto.getCategoryId()).orElseThrow());
+        t.setCategory(categoryRepository.findById(dto.getCategoryId())
+                .orElseThrow(() -> new IllegalArgumentException("Categoria nu există.")));
         t.setDescription(dto.getDescription());
         t.setStatus("EXECUTED");
         t.setTransactionType("INTERNAL");
@@ -243,28 +280,34 @@ public class TransactionServiceImpl implements TransactionService {
     public Transaction performCurrencyExchange(CurrencyExchangeDTO dto, User user) {
 
         if (!passwordEncoder.matches(dto.getPassword(), user.getPasswordHash())) {
-            throw new RuntimeException("Parolă incorectă!");
+            throw new IllegalArgumentException("Parolă incorectă!");
         }
 
         Account source = accountRepository.findById(dto.getSourceAccountId().longValue())
-                .orElseThrow(() -> new RuntimeException("Cont sursă inexistent."));
+                .orElseThrow(() -> new IllegalArgumentException("Cont sursă inexistent."));
         Account destination = accountRepository.findById(dto.getDestinationAccountId().longValue())
-                .orElseThrow(() -> new RuntimeException("Cont destinație inexistent."));
+                .orElseThrow(() -> new IllegalArgumentException("Cont destinație inexistent."));
 
         if (source.getAccountId().equals(destination.getAccountId())) {
-            throw new RuntimeException("Conturile trebuie să fie diferite.");
+            throw new IllegalArgumentException("Conturile trebuie să fie diferite.");
         }
         if (source.getCurrency().equals(destination.getCurrency())) {
-            throw new RuntimeException("Valutele trebuie să fie diferite pentru schimb valutar.");
+            throw new IllegalArgumentException("Valutele trebuie să fie diferite pentru schimb valutar.");
         }
         if (!"ACTIVE".equals(source.getStatus()) || !"ACTIVE".equals(destination.getStatus())) {
-            throw new RuntimeException("Conturile trebuie să fie ACTIVE.");
+            throw new IllegalArgumentException("Conturile trebuie să fie ACTIVE.");
         }
 
 
         boolean hasAccess = source.getAccountAccessList().stream()
-                .anyMatch(a -> a.getUser().getUserId() == user.getUserId() && !"VIEWER".equalsIgnoreCase(a.getAccessRole()));
-        if (!hasAccess) throw new RuntimeException("Acces refuzat.");
+                .anyMatch(a -> a.getUser().getUserId().equals(user.getUserId()) && !"VIEWER".equalsIgnoreCase(a.getAccessRole()));
+        if (!hasAccess) throw new IllegalArgumentException("Acces refuzat.");
+
+        boolean ownsDestination = destination.getAccountAccessList().stream()
+                .anyMatch(a -> a.getUser().getUserId().equals(user.getUserId()) && "ACTIVE".equals(a.getStatus()));
+        if (!ownsDestination) {
+            throw new IllegalArgumentException("Contul destinație trebuie să vă aparțină (schimb valutar doar între conturile proprii).");
+        }
 
 
         String baseCurrency = "";
@@ -273,14 +316,14 @@ public class TransactionServiceImpl implements TransactionService {
         } else if (destination.getCurrency().equals("RON")) {
             baseCurrency = source.getCurrency();
         } else {
-            throw new RuntimeException("Sistemul permite doar schimburi care implică RON (RON-EUR sau RON-USD).");
+            throw new IllegalArgumentException("Sistemul permite doar schimburi care implică RON (RON-EUR sau RON-USD).");
         }
 
         final String finalBaseCurrency = source.getCurrency().equals("RON")
                 ? destination.getCurrency()
                 : source.getCurrency();
-        ExchangeRate rateEntity = exchangeRateRepository.findByCurrencyFromAndCurrencyTo(finalBaseCurrency, "RON")
-                .orElseThrow(() -> new RuntimeException("Cursul valutar pentru " + finalBaseCurrency + " nu a fost găsit."));
+        ExchangeRate rateEntity = exchangeRateRepository.findTopByCurrencyFromAndCurrencyToOrderByRateDateDesc(finalBaseCurrency, "RON")
+                .orElseThrow(() -> new IllegalArgumentException("Cursul valutar pentru " + finalBaseCurrency + " nu a fost găsit."));
 
         double rate = rateEntity.getRate();
         double amountConverted;
@@ -292,7 +335,7 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         checkLimits(user, dto.getAmount());
-        if (source.getBalance() < dto.getAmount()) throw new RuntimeException("Fonduri insuficiente.");
+        if (source.getBalance() < dto.getAmount()) throw new IllegalArgumentException("Fonduri insuficiente.");
 
         source.setBalance(source.getBalance() - dto.getAmount());
         destination.setBalance(destination.getBalance() + amountConverted);
@@ -307,7 +350,8 @@ public class TransactionServiceImpl implements TransactionService {
         t.setAmount(dto.getAmount()); // Suma originală
         t.setCurrency(source.getCurrency());
         t.setExchangeRate(rateEntity); // Referință către rata de bază
-        t.setCategory(categoryRepository.findById(dto.getCategoryId()).orElseThrow());
+        t.setCategory(categoryRepository.findById(dto.getCategoryId())
+                .orElseThrow(() -> new IllegalArgumentException("Categoria nu există.")));
         t.setDescription(dto.getDescription());
         t.setStatus("EXECUTED");
         t.setTransactionType("EXCHANGE");

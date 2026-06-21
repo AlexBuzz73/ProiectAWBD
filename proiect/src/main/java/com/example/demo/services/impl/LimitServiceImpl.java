@@ -235,15 +235,15 @@ public class LimitServiceImpl implements LimitService {
             throw new IllegalArgumentException("User: User limit not found!");
         }
 
-        userLimitRepository.save(userLimit);
         userLimit.setStatus("INACTIVE");
+        userLimitRepository.save(userLimit);
 
     }
 
     @Override
     public void deleteBankLimits(Integer bankLimitId) {
         BankLimit bankLimit = bankLimitRepository.findByStatus("ACTIVE").orElseThrow( () -> new IllegalArgumentException("Active bank limits not found!"));
-        bankLimitRepository.save(bankLimit);
         bankLimit.setStatus("INACTIVE");
+        bankLimitRepository.save(bankLimit);
     }
 }
