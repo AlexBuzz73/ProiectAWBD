@@ -17,6 +17,7 @@ async function getErrorMessage(response, fallbackMessage) {
 export async function validateIndividual(individualData) {
     const response = await fetch(`${BASE_URL}/validate-individual`, {
         method: "POST",
+        credentials: 'include',
         headers: {
             "Content-Type": "application/json",
         },
@@ -32,6 +33,7 @@ export async function validateIndividual(individualData) {
 export async function registerUser(registrationData) {
     const response = await fetch(`${BASE_URL}/register`, {
         method: "POST",
+        credentials: 'include',
         headers: {
             "Content-Type": "application/json",
         },
@@ -47,6 +49,7 @@ export async function registerUser(registrationData) {
 export async function loginUser(loginData) {
     const response = await fetch(`${BASE_URL}/login`, {
         method: "POST",
+        credentials: 'include',
         headers: {
             "Content-Type": "application/json",
         },
@@ -59,4 +62,15 @@ export async function loginUser(loginData) {
     }
 
     return response.json();
+}
+
+export async function logoutUser() {
+    try {
+        await fetch(`${BASE_URL}/logout`, {
+            method: "POST",
+            credentials: 'include',
+        });
+    } catch (e) {
+        // ignora erorile de retea la logout - sesiunea locala se curata oricum
+    }
 }

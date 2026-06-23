@@ -1,73 +1,44 @@
-const BASE_URL = "http://localhost:8080/api";
+const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/admin`;
+
+async function getErrorMessage(response, fallbackMessage) {
+    const contentType = response.headers.get("content-type");
+
+    if (contentType && contentType.includes("application/json")) {
+        const errorBody = await response.json();
+        const messages = Object.values(errorBody);
+
+        return messages.length > 0 ? messages[0] : fallbackMessage;
+    }
+
+    const message = await response.text();
+    return message || fallbackMessage;
+}
 
 export async function getBankLimits() {
-    const response = await fetch('${BASE_URL}/admin/bank-limits');
+    const response = await fetch(`${BASE_URL}/bank-limits`, { credentials: 'include' });
 
     if (!response.ok) {
-        throw new Error("The bank-limits could not be found.");
+        const message = await getErrorMessage(response, "Could not load bank limits.");
+        throw new Error(message);
     }
 
     return response.json();
 }
 
-export async function updateBankLimits(data) {
-    const response = await fetch('${BASE_URL}/admin/bank-limits', {
-        method: 'PUT',
+export async function updateBankLimits(limitsData) {
+    const response = await fetch(`${BASE_URL}/bank-limits`, {
+        method: "PUT",
+        credentials: 'include',
         headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(limitsData),
     });
 
     if (!response.ok) {
-        throw new Error("The bank-limits could not be updated.");
+        const message = await getErrorMessage(response, "Could not update bank limits.");
+        throw new Error(message);
     }
 
     return response.json();
-}
-
-export async function deleteBankLimits(id) {
-    const response = await fetch(`${BASE_URL}/admin/bank-limits/${id}`, {
-        method: 'DELETE',
-    });
-
-    if (!response.ok) {
-        throw new Error("The bank-limits could not be deleted.");
-    }
-}
-
-export async function getUserLimits(userId) {
-    const response = await fetch('${BASE_URL}/user/${userId}/limits');
-
-    if (!response.ok) {
-        throw new Error("The user-limits could not be found.");
-    }
-
-    return response.json();
-}
-
-export async function updateUserLimits(data) {
-    const response = await fetch('${BASE_URL}/user/${userId}/limits', {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-        throw new Error("The user-limits could not be updated.");
-    }
-
-    return response.json();
-}
-
-export async function deleteUserLimits(id) {
-    const response = await fetch(`${BASE_URL}/user/${id}/limits`, {
-        method: 'DELETE',
-    });
-
-    if (!response.ok) {
-        throw new Error("The user-limits could not be deleted.");
-    }
 }

@@ -17,6 +17,7 @@ async function getErrorMessage(response, fallbackMessage) {
 export async function unlockUserByEmail(email) {
     const response = await fetch(`${BASE_URL}/unlock-user?email=${encodeURIComponent(email)}`, {
         method: "POST",
+        credentials: 'include',
     });
 
     if (!response.ok) {
@@ -30,6 +31,7 @@ export async function unlockUserByEmail(email) {
 export async function createSharedAccount(sharedAccountData) {
     const response = await fetch(`${BASE_URL}/create-shared-account`, {
         method: "POST",
+        credentials: 'include',
         headers: {
             "Content-Type": "application/json",
         },
@@ -47,6 +49,7 @@ export async function createSharedAccount(sharedAccountData) {
 export async function revokeAccountAccess(accountId, email) {
     const response = await fetch(`${BASE_URL}/accounts/${accountId}/access?email=${encodeURIComponent(email)}`, {
         method: "DELETE",
+        credentials: 'include',
     });
 
     if (!response.ok) {

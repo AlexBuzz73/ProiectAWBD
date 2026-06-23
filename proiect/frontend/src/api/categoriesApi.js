@@ -14,9 +14,20 @@ async function getErrorMessage(response, fallbackMessage) {
     return message || fallbackMessage;
 }
 
+export async function getCategories(userId) {
+    const response = await fetch(`${BASE_URL}/${userId}/categories`, { credentials: 'include' });
+
+    if (!response.ok) {
+        const message = await getErrorMessage(response, "Could not load categories.");
+        throw new Error(message);
+    }
+
+    return response.json();
+}
+
 export async function getCategoriesPaged(userId, page, size, sortBy, direction) {
     const params = new URLSearchParams({ page, size, sortBy, direction });
-    const response = await fetch(`${BASE_URL}/${userId}/categories/paged?${params.toString()}`);
+    const response = await fetch(`${BASE_URL}/${userId}/categories/paged?${params.toString()}`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load categories.");
@@ -29,6 +40,7 @@ export async function getCategoriesPaged(userId, page, size, sortBy, direction) 
 export async function createCategory(userId, categoryData) {
     const response = await fetch(`${BASE_URL}/${userId}/categories`, {
         method: "POST",
+        credentials: 'include',
         headers: {
             "Content-Type": "application/json",
         },
@@ -46,6 +58,7 @@ export async function createCategory(userId, categoryData) {
 export async function deleteCategory(userId, categoryId) {
     const response = await fetch(`${BASE_URL}/${userId}/categories/${categoryId}`, {
         method: "DELETE",
+        credentials: 'include',
     });
 
     if (!response.ok) {

@@ -1,6 +1,7 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getLoggedUser, removeLoggedUser } from "../../utils/authStorage.js";
+import { logoutUser } from "../../api/authApi.js";
 import { getAccountCurrencySummary, getActiveAccountsPaged, } from "../../api/accountsApi.js";
 import { getUserTransactionsPaged, } from "../../api/transactionsApi";
 import AccountList from "../../components/accounts/AccountList";
@@ -127,7 +128,8 @@ function UserDashboardPage() {
         loadTransactions();
     }, [user?.userId, transactionsPageNumber, transactionsPageSize, transactionsSortBy, transactionsDirection]);
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        await logoutUser();
         removeLoggedUser();
         navigate("/login");
     };
@@ -316,11 +318,21 @@ function UserDashboardPage() {
                 </li>
 
                 <li>
-                    Internal / External Payments (Coming soon)
+                    <Link to="/payments/new">
+                        Internal / External Payment
+                    </Link>
                 </li>
 
                 <li>
-                    Currency Exchange (Coming soon)
+                    <Link to="/transfer">
+                        Transfer Between Own Accounts
+                    </Link>
+                </li>
+
+                <li>
+                    <Link to="/exchange">
+                        Currency Exchange
+                    </Link>
                 </li>
 
                 <li>

@@ -1,13 +1,20 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getLoggedUser, removeLoggedUser } from "../../utils/authStorage.js";
+import { logoutUser } from "../../api/authApi.js";
 
 function AdminDashboardPage() {
     const navigate = useNavigate();
     const user = getLoggedUser();
-    const handleLogout = () => {
+
+    const handleLogout = async () => {
+        await logoutUser();
         removeLoggedUser();
         navigate("/login");
     };
+
+    if (!user) {
+        return <p>User is not logged in.</p>;
+    }
 
     return (
         <div>
@@ -24,10 +31,18 @@ function AdminDashboardPage() {
             <h2>Administrative Actions</h2>
 
             <ul>
-                <li>Unlock blocked users (Coming soon)</li>
-                <li>Configure global bank limits (Coming soon)</li>
-                <li>Create shared accounts (Coming soon)</li>
-                <li>Revoke shared account access (Coming soon)</li>
+                <li>
+                    <Link to="/admin/unlock-user">Unlock blocked user</Link>
+                </li>
+                <li>
+                    <Link to="/admin/bank-limits">Configure global bank limits</Link>
+                </li>
+                <li>
+                    <Link to="/admin/shared-account">Create shared account</Link>
+                </li>
+                <li>
+                    <Link to="/admin/revoke-access">Revoke shared account access</Link>
+                </li>
             </ul>
 
             <button onClick={handleLogout}>
