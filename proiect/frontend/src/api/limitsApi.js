@@ -15,7 +15,7 @@ async function getErrorMessage(response, fallbackMessage) {
 }
 
 export async function getUserLimits(userId) {
-    const response = await fetch(`${BASE_URL}/${userId}/limits`);
+    const response = await fetch(`${BASE_URL}/${userId}/limits`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load user limits.");
@@ -28,6 +28,7 @@ export async function getUserLimits(userId) {
 export async function updateUserLimits(userId, limitsData) {
     const response = await fetch(`${BASE_URL}/${userId}/limits`, {
         method: "PUT",
+        credentials: 'include',
         headers: {
             "Content-Type": "application/json",
         },

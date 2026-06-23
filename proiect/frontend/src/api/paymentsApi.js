@@ -17,6 +17,7 @@ async function getErrorMessage(response, fallbackMessage) {
 export async function initiatePayment(userId, paymentData) {
     const response = await fetch(`${BASE_URL}/initiate?userId=${userId}`, {
         method: "POST",
+        credentials: 'include',
         headers: {
             "Content-Type": "application/json",
         },
@@ -34,6 +35,7 @@ export async function initiatePayment(userId, paymentData) {
 export async function transferOwnAccounts(userId, transferData) {
     const response = await fetch(`${BASE_URL}/transfer-own?userId=${userId}`, {
         method: "POST",
+        credentials: 'include',
         headers: {
             "Content-Type": "application/json",
         },
@@ -51,6 +53,7 @@ export async function transferOwnAccounts(userId, transferData) {
 export async function exchangeCurrency(userId, exchangeData) {
     const response = await fetch(`${BASE_URL}/exchange?userId=${userId}`, {
         method: "POST",
+        credentials: 'include',
         headers: {
             "Content-Type": "application/json",
         },

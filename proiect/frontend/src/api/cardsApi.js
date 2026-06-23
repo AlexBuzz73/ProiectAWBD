@@ -15,7 +15,7 @@ async function getErrorMessage(response, fallbackMessage) {
 }
 
 export async function getCardForAccount(userId, accountId) {
-    const response = await fetch(`${BASE_URL}/${userId}/accounts/${accountId}/card`);
+    const response = await fetch(`${BASE_URL}/${userId}/accounts/${accountId}/card`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load card.");
@@ -34,6 +34,7 @@ export async function getCardForAccount(userId, accountId) {
 export async function createCard(userId, accountId) {
     const response = await fetch(`${BASE_URL}/${userId}/accounts/${accountId}/card`, {
         method: "POST",
+        credentials: 'include',
     });
 
     if (!response.ok) {

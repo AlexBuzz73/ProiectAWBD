@@ -16,7 +16,9 @@ async function getErrorMessage(response, fallbackMessage) {
 
 export async function createSingleAccount(accountData, userId) {
     const response = await fetch(`${BASE_URL}?userId=${userId}`, {
+        credentials: 'include',
         method: "POST",
+        credentials: 'include',
         headers: {
             "Content-Type": "application/json",
         },
@@ -32,7 +34,8 @@ export async function createSingleAccount(accountData, userId) {
 }
 
 export async function getActiveAccounts(userId) {
-    const response = await fetch(`${BASE_URL}?userId=${userId}`);
+    const response = await fetch(`${BASE_URL}?userId=${userId}`, {
+        credentials: 'include', credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load accounts.");
@@ -43,7 +46,7 @@ export async function getActiveAccounts(userId) {
 }
 
 export async function getAccountDetails(accountId, userId) {
-    const response = await fetch(`${BASE_URL}/${accountId}?userId=${userId}`);
+    const response = await fetch(`${BASE_URL}/${accountId}?userId=${userId}`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load account details.");
@@ -55,7 +58,9 @@ export async function getAccountDetails(accountId, userId) {
 
 export async function closeAccount(accountId, userId) {
     const response = await fetch(`${BASE_URL}/${accountId}/close?userId=${userId}`, {
+        credentials: 'include',
         method: "PUT",
+        credentials: 'include',
     });
 
     if (!response.ok) {
@@ -66,7 +71,7 @@ export async function closeAccount(accountId, userId) {
 
 export async function getActiveAccountsPaged(userId, page, size, sortBy, direction) {
     const params = new URLSearchParams({userId, page, size, sortBy, direction,});
-    const response = await fetch(`${BASE_URL}/paged?${params.toString()}`);
+    const response = await fetch(`${BASE_URL}/paged?${params.toString()}`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load paged accounts.");
@@ -77,7 +82,7 @@ export async function getActiveAccountsPaged(userId, page, size, sortBy, directi
 }
 
 export async function getAccountCurrencySummary(userId) {
-    const response = await fetch(`${BASE_URL}/summary/currency?userId=${userId}`);
+    const response = await fetch(`${BASE_URL}/summary/currency?userId=${userId}`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load account summary.");

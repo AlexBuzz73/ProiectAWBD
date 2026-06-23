@@ -16,7 +16,7 @@ async function getErrorMessage(response, fallbackMessage) {
 
 export async function getUserTransactionsPaged(userId, page, size, sortBy, direction) {
     const params = new URLSearchParams({userId, page, size, sortBy, direction,});
-    const response = await fetch(`${BASE_URL}/user?${params.toString()}`);
+    const response = await fetch(`${BASE_URL}/user?${params.toString()}`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load transactions.");
@@ -28,7 +28,7 @@ export async function getUserTransactionsPaged(userId, page, size, sortBy, direc
 
 export async function getAccountTransactionsPaged(accountId, userId, page, size, sortBy, direction) {
     const params = new URLSearchParams({userId, page, size, sortBy, direction,});
-    const response = await fetch(`${BASE_URL}/account/${accountId}?${params.toString()}`);
+    const response = await fetch(`${BASE_URL}/account/${accountId}?${params.toString()}`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load account transactions.");
