@@ -168,8 +168,7 @@ public class TransactionServiceImpl implements TransactionService {
             return transactionRepository.findById(saved.getTransactionId()).get();
         }
 
-        // Plățile standard și cele programate trec în PENDING_EXECUTION după autorizare;
-        // execuția propriu-zisă e preluată de joburile automate (PaymentJob / jobul zilnic de plăți programate).
+
         transaction.setStatus("PENDING_EXECUTION");
         log.info("Plata {} autorizata, in asteptare de executie (PENDING_EXECUTION).", transactionId);
         return transactionRepository.save(transaction);

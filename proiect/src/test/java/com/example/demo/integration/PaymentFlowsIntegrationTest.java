@@ -18,12 +18,7 @@ import java.util.Date;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * Teste de integrare end-to-end pentru fluxurile 7 (plati), 8 (transfer intre conturi proprii)
- * si 9 (schimb valutar). Folosesc contextul Spring real, baza H2 de test si trec efectiv prin
- * MockMvc -> controller -> service -> repository -> serializare JSON, nu doar prin service izolat
- * cu mock-uri (cum fac testele unitare).
- */
+
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -54,9 +49,7 @@ class PaymentFlowsIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // Baza H2 e impartita intre TOATE clasele de integrare dintr-o rulare de teste,
-        // de-asta curatam si tabele pe care nu le folosim noi direct (cards, user_limits) -
-        // pot avea date ramase de la alta clasa care a rulat inaintea noastra.
+
         cardRepository.deleteAllInBatch();
         scheduledPaymentRepository.deleteAllInBatch();
         transactionRepository.deleteAllInBatch();

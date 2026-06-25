@@ -12,14 +12,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/**
- * Leaga Spring Security de tabela `users` din baza de date (autentificare JDBC prin JPA).
- * Spring Security apeleaza loadUserByUsername la orice incercare de autentificare prin
- * AuthenticationManager, in loc sa foloseasca userul in-memory generat automat.
- *
- * Rolurile din BD ("USER", "ADMIN") sunt prefixate cu "ROLE_" conform conventiei Spring Security,
- * astfel incat hasRole("USER") si hasRole("ADMIN") functioneaza corect in SecurityConfig.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

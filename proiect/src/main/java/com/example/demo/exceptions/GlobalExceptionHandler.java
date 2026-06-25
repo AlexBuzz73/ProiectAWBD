@@ -35,9 +35,7 @@ public class GlobalExceptionHandler {
                 .body(errors);
     }
 
-    // Orice alta exceptie neprevazuta (NPE, eroare de baza de date etc.) ajungea pana acum
-    // direct la client ca 500 generic, fara niciun log. O prindem aici, o logam complet
-    // (cu stacktrace, in fisierul separat de erori) si intoarcem un mesaj generic catre client.
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleUnexpectedError(Exception ex) {
         log.error("Eroare neasteptata: {}", ex.getMessage(), ex);

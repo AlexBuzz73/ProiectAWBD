@@ -28,11 +28,7 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    /**
-     * Autentificare JDBC prin DaoAuthenticationProvider:
-     * conecteaza Spring Security la UserDetailsService-ul nostru (tabela users din BD)
-     * si la BCryptPasswordEncoder pentru verificarea parolei.
-     */
+
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
@@ -40,10 +36,7 @@ public class SecurityConfig {
         return provider;
     }
 
-    /**
-     * AuthenticationManager expus ca Bean, necesar in AuthController
-     * pentru autentificarea programatica prin /api/auth/login.
-     */
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
@@ -53,38 +46,32 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .cors(Customizer.withDefaults())
-            // CSRF dezactivat pentru SPA React (requests vin cu JSON, nu cu form HTML).
-            // Activarea CSRF pentru SPA necesita trimiterea token-ului XSRF-TOKEN la fiecare
-            // request mutant (POST/PUT/DELETE) - lasam dezactivat, e acceptabil pentru SPA.
             .csrf(csrf -> csrf.disable())
             .authenticationProvider(authenticationProvider())
             .authorizeHttpRequests(auth -> auth
-                // Public - nu necesita autentificare
+
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
 
-                // Doar ADMIN
+
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                // USER sau ADMIN (orice utilizator autentificat)
+
                 .requestMatchers("/api/accounts/**").hasAnyRole("USER", "ADMIN")
                 .requestMatchers("/api/transactions/**").hasAnyRole("USER", "ADMIN")
                 .requestMatchers("/api/payments/**").hasAnyRole("USER", "ADMIN")
                 .requestMatchers("/api/users/**").hasAnyRole("USER", "ADMIN")
 
-                // Orice alt endpoint necesita autentificare
+
                 .anyRequest().authenticated()
             )
-            // Sesiune standard (ALWAYS) - necesara pentru a mentine autentificarea
-            // intre request-uri in cadrul SPA-ului, fara JWT.
+
             .sessionManagement(session -> session
                 .sessionCreationPolicy(
                     org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED
                 )
             )
-            // Logout: invalideaza sesiunea si cookie-ul JSESSIONID.
-            // Frontend-ul apeleaza POST /api/auth/logout, care este delegat automat
-            // de Spring Security la mecanismul de logout configurat aici.
+
             .logout(logout -> logout
                 .logoutUrl("/api/auth/logout")
                 .invalidateHttpSession(true)
@@ -95,8 +82,7 @@ public class SecurityConfig {
                     response.getWriter().write("{\"message\": \"Logout successful\"}");
                 })
             )
-            // Dezactivam redirect-ul automat catre /login al Spring Security:
-            // frontul gestioneaza redirectarea catre LoginPage.jsx.
+
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(401);
@@ -120,7 +106,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-        // Necesar pentru a trimite cookie-ul de sesiune (JSESSIONID) intre React si Spring
+
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

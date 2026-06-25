@@ -72,9 +72,7 @@ class LimitControllerIntegrationTest {
 
     private User activeUser;
 
-    // Baza H2 e impartita intre TOATE clasele de integrare dintr-o rulare de teste,
-    // de-asta curatam toate tabelele care ar putea referinta accounts/users, nu doar
-    // pe cele folosite direct aici.
+
     @BeforeEach
     void setUp() {
         scheduledPaymentRepository.deleteAllInBatch();

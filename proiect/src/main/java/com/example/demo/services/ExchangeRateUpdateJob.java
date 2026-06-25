@@ -21,17 +21,7 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.Set;
 
-/**
- * Job zilnic care preia cursurile USD->RON si EUR->RON de la BNR
- * (https://www.bnr.ro/nbrfxrates.xml) si le salveaza in EXCHANGE_RATES.
- * Conform doc/flows/9-exchanges.md (sectiunea 13): se pastreaza un singur curs
- * per zi per pereche valutara, doar pentru USD->RON si EUR->RON.
- *
- * NOTA: nu am putut testa fetch-ul efectiv catre bnr.ro din acest mediu (acces retea
- * restrictionat la sandbox). Structura XML de mai jos e cea documentata public de BNR
- * (DataSet/Body/Cube[@date]/Rate[@currency][@multiplier]) - verifica un raspuns real
- * inainte sa consideri jobul gata de demo.
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -43,7 +33,7 @@ public class ExchangeRateUpdateJob {
     private final ExchangeRateRepository exchangeRateRepository;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    // BNR publica de regula in jurul orei 13:00; rulam putin mai tarziu, sa fim siguri ca exista deja datele zilei.
+
     @Scheduled(cron = "0 0 14 * * *")
     public void updateExchangeRates() {
         try {
@@ -109,7 +99,7 @@ public class ExchangeRateUpdateJob {
 
     private Document parseXml(String xml) throws Exception {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        // dezactivam rezolvarea entitatilor externe (best practice de securitate la parsare XML)
+
         factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
         DocumentBuilder builder = factory.newDocumentBuilder();
         return builder.parse(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
