@@ -18,7 +18,6 @@ export async function createSingleAccount(accountData, userId) {
     const response = await fetch(`${BASE_URL}?userId=${userId}`, {
         credentials: 'include',
         method: "POST",
-        credentials: 'include',
         headers: {
             "Content-Type": "application/json",
         },
@@ -35,7 +34,7 @@ export async function createSingleAccount(accountData, userId) {
 
 export async function getActiveAccounts(userId) {
     const response = await fetch(`${BASE_URL}?userId=${userId}`, {
-        credentials: 'include', credentials: 'include' });
+        credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load accounts.");
@@ -60,7 +59,6 @@ export async function closeAccount(accountId, userId) {
     const response = await fetch(`${BASE_URL}/${accountId}/close?userId=${userId}`, {
         credentials: 'include',
         method: "PUT",
-        credentials: 'include',
     });
 
     if (!response.ok) {
