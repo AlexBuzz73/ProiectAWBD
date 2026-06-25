@@ -48,6 +48,7 @@ export async function createCard(userId, accountId) {
 export async function updateCardStatus(userId, accountId, cardId, status) {
     const response = await fetch(`${BASE_URL}/${userId}/accounts/${accountId}/card/${cardId}/status/${status}`, {
         method: "PATCH",
+        credentials: 'include',
     });
 
     if (!response.ok) {

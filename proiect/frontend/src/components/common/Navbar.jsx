@@ -7,9 +7,12 @@ function Navbar() {
     const user = getLoggedUser();
 
     const handleLogout = async () => {
-        await logoutUser();
-        removeLoggedUser();
-        navigate("/login");
+        try{
+            await logoutUser();
+        } finally {
+            removeLoggedUser();
+            navigate("/login", { replace:true });
+        }
     };
 
     if (!user) return null;

@@ -4,6 +4,8 @@ import com.example.demo.domain.ExchangeRate;
 import com.example.demo.repositories.ExchangeRateRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -33,7 +35,13 @@ public class ExchangeRateUpdateJob {
     private final ExchangeRateRepository exchangeRateRepository;
     private final RestTemplate restTemplate = new RestTemplate();
 
+    @EventListener(ApplicationReadyEvent.class)
+    public void runOnStartup() {
+        log.info("ExchangeRateUpdateJob: rulare la pornirea aplicatiei.");
+        updateExchangeRates();
+    }
 
+    // BNR publica de regula in jurul orei 13:00; rulam putin mai tarziu, sa fim siguri ca exista deja datele zilei.
     @Scheduled(cron = "0 0 14 * * *")
     public void updateExchangeRates() {
         try {

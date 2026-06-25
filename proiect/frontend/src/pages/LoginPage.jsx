@@ -2,7 +2,7 @@ import LoginForm from "../components/auth/LoginForm.jsx";
 import { loginUser } from "../api/authApi.js";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { getLoggedUser, saveLoggedUser } from "../utils/authStorage.js";
+import { saveLoggedUser } from "../utils/authStorage.js";
 
 function LoginPage() {
     const [message, setMessage] = useState("");
@@ -16,20 +16,6 @@ function LoginPage() {
             setMessage(location.state.message);
         }
     }, [location]);
-
-    useEffect(() => {
-        const user = getLoggedUser();
-
-        if (!user) {
-            return;
-        }
-
-        if (user.role === "ADMIN") {
-            navigate("/admin/dashboard");
-        } else {
-            navigate("/dashboard");
-        }
-    }, [navigate]);
 
     const handleLoginSubmit = async (formData) => {
         setLoading(true);

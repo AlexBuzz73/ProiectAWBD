@@ -61,6 +61,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/transactions/**").hasAnyRole("USER", "ADMIN")
                 .requestMatchers("/api/payments/**").hasAnyRole("USER", "ADMIN")
                 .requestMatchers("/api/users/**").hasAnyRole("USER", "ADMIN")
+                .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN")
+                .requestMatchers("/api/cards/**").hasAnyRole("USER")
 
 
                 .anyRequest().authenticated()
@@ -75,6 +77,7 @@ public class SecurityConfig {
             .logout(logout -> logout
                 .logoutUrl("/api/auth/logout")
                 .invalidateHttpSession(true)
+                .clearAuthentication(true)
                 .deleteCookies("JSESSIONID")
                 .logoutSuccessHandler((request, response, authentication) -> {
                     response.setStatus(200);
