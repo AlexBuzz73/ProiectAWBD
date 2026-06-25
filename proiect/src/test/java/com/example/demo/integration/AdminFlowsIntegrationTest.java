@@ -27,11 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * Teste de integrare end-to-end pentru flux 10 (administrativ): deblocare utilizator,
- * creare cont partajat, revocare acces. Bank limits (GET/PUT) sunt deja acoperite de
- * LimitControllerIntegrationTest.
- */
+
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -54,11 +50,7 @@ class AdminFlowsIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // Baza H2 e impartita intre TOATE clasele de integrare dintr-o rulare de teste.
-        // Curatam tot ce ar putea referinta accounts/users, nu doar ce folosim noi direct,
-        // altfel deleteAllInBatch() de mai jos pica cu eroare de constrangere FK daca o
-        // alta clasa (ex. AccountIntegrationTest, CardControllerIntegrationTest) a rulat
-        // inaintea noastra si a lasat date in urma.
+
         cardRepository.deleteAllInBatch();
         scheduledPaymentRepository.deleteAllInBatch();
         transactionRepository.deleteAllInBatch();

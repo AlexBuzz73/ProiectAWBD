@@ -24,10 +24,6 @@ public class LimitController {
         return limitService.getBankLimits();
     }
 
-//    @GetMapping("/test")
-//    public String test() {
-//        return "merge";
-//    }
 
     @PutMapping("/admin/bank-limits")
     public BankLimitResponseDTO updateBankLimits(@Valid @RequestBody BankLimitRequestDTO bankLimitRequestDTO) {

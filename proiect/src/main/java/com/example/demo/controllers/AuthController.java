@@ -43,31 +43,20 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * Login prin Spring Security AuthenticationManager (autentificare JDBC reala).
-     * AuthService.login() pastreaza logica de business (numarare incercari esuate, blocare cont),
-     * iar AuthenticationManager verifica credentialele prin CustomUserDetailsService + BCrypt.
-     * La succes, sesiunea Spring Security e salvata astfel incat requesturile ulterioare
-     * sunt autentificate automat prin cookie JSESSIONID.
-     */
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(
             @Valid @RequestBody LoginRequestDTO dto,
             HttpServletRequest request) {
 
-        // Logica de business: contorizare incercari esuate, blocare cont dupa 3 greseli.
-        // AuthService.login() aruncă IllegalArgumentException cu mesaj clar dacă ceva nu e ok.
+
         LoginResponseDTO response = authService.login(dto);
 
-        // Autentificare reala prin Spring Security (JDBC via CustomUserDetailsService + BCrypt).
-        // Daca autentificarea esueaza, AuthenticationManager arunca exceptii specifice.
+
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword())
             );
 
-            // Salvam contextul de securitate in sesiunea HTTP, ca request-urile ulterioare
-            // sa fie autentificate automat prin cookie-ul JSESSIONID.
             SecurityContextHolder.getContext().setAuthentication(authentication);
             new HttpSessionSecurityContextRepository()
                     .saveContext(SecurityContextHolder.getContext(), request, null);
@@ -76,8 +65,7 @@ public class AuthController {
         } catch (LockedException e) {
             throw new IllegalArgumentException("Contul este blocat. Contactati banca.");
         } catch (BadCredentialsException e) {
-            // AuthService.login() a trecut deja, deci parola e corecta in BD.
-            // Daca AuthenticationManager tot esueaza, e o problema de configurare.
+
             log.error("Spring Security: autentificare esuata desi AuthService a acceptat - email={}", dto.getEmail());
             throw new IllegalArgumentException("Eroare de autentificare. Incercati din nou.");
         }

@@ -10,14 +10,7 @@ import org.springframework.stereotype.Service;
 import java.util.Date;
 import java.util.List;
 
-/**
- * Job zilnic care executa platile programate (SCHEDULED_PAYMENTS) ajunse la scadenta.
- * Conform doc/flows/7-transactions.md (sectiunea 8, Caz 3) si doc/flows/9-exchanges.md (sectiunea 13):
- * executia se face la data specificata, printr-un job ce ruleaza zilnic.
- *
- * Ruleaza in fiecare zi la 01:00. Pentru a testa rapid in dev, se poate inlocui temporar
- * cron-ul cu un fixedDelay mai mic (ex: fixedDelay = 60000).
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
