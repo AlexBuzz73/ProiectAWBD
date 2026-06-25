@@ -75,32 +75,30 @@ function RegisterPage() {
     };
 
     return (
-        <div>
-            <h1>Register</h1>
+        <div className="auth-page">
+            <div className="auth-card">
+                <h1>🏦 Internet Banking</h1>
+                <p className="auth-subtitle">
+                    {step === 1 ? "Pasul 1 din 2 — Date personale" : "Pasul 2 din 2 — Date cont"}
+                </p>
 
-            {message && <p style={{ color: "green" }}>{message}</p>}
-            {error && <p style={{ color: "red" }}>{error}</p>}
-            {loading && <p>Processing request...</p>}
+                {message && <p style={{ color: "green" }}>{message}</p>}
+                {error && <p style={{ color: "red" }}>{error}</p>}
+                {loading && <p className="loading">Se procesează...</p>}
 
-            {step === 1 && (
-                <IndividualRegistrationForm
-                    onSubmit={handleIndividualSubmit}
-                />
-            )}
+                {step === 1 && (
+                    <IndividualRegistrationForm onSubmit={handleIndividualSubmit} />
+                )}
 
-            {step === 2 && (
-                <UserRegistrationForm
-                    onSubmit={handleUserSubmit}
-                    onBack={handleBack}
-                />
-            )}
+                {step === 2 && (
+                    <UserRegistrationForm onSubmit={handleUserSubmit} onBack={handleBack} />
+                )}
 
-            <p>
-                Already have an account?{" "}
-                <Link to="/login">
-                    Login here
-                </Link>
-            </p>
+                <p style={{ textAlign: "center", marginTop: "var(--space-md)", fontSize: "0.875rem", color: "var(--text-muted)" }}>
+                    Ai deja cont?{" "}
+                    <Link to="/login">Autentifică-te</Link>
+                </p>
+            </div>
         </div>
     );
 }

@@ -54,21 +54,22 @@ function LoginPage() {
     };
 
     return (
-        <div>
-            <h1>Internet Banking Login</h1>
+        <div className="auth-page">
+            <div className="auth-card">
+                <h1>🏦 Internet Banking</h1>
+                <p className="auth-subtitle">Bine ați revenit</p>
 
-            {message && <p style={{ color: "green" }}>{message}</p>}
-            {error && <p style={{ color: "red" }}>{error}</p>}
-            {loading && <p>Logging in...</p>}
+                {message && <p style={{ color: "green" }}>{message}</p>}
+                {error && <p style={{ color: "red" }}>{error}</p>}
+                {loading && <p className="loading">Se procesează...</p>}
 
-            <LoginForm onSubmit={handleLoginSubmit} />
+                <LoginForm onSubmit={handleLoginSubmit} />
 
-            <p>
-                Don't have an account?{" "}
-                <Link to="/register">
-                    Register here
-                </Link>
-            </p>
+                <p style={{ textAlign: "center", marginTop: "var(--space-md)", fontSize: "0.875rem", color: "var(--text-muted)" }}>
+                    Nu ai cont?{" "}
+                    <Link to="/register">Înregistrează-te</Link>
+                </p>
+            </div>
         </div>
     );
 }

@@ -17,7 +17,7 @@ function AdminDashboardPage() {
     }
 
     return (
-        <div>
+        <div className="page">
             <h1>Admin Dashboard</h1>
 
             <p>
@@ -30,7 +30,7 @@ function AdminDashboardPage() {
 
             <h2>Administrative Actions</h2>
 
-            <ul>
+            <ul className="admin-actions">
                 <li>
                     <Link to="/admin/unlock-user">Unlock blocked user</Link>
                 </li>

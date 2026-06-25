@@ -117,7 +117,7 @@ function AccountDetailsPage() {
     };
 
     return (
-        <div>
+        <div className="page">
             <h1>Account Details</h1>
 
             {error && (

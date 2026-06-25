@@ -2,20 +2,13 @@ import TransactionCard from "./TransactionCard";
 
 function TransactionList({ transactions }) {
     if (transactions.length === 0) {
-        return (
-            <p>
-                No transactions found.
-            </p>
-        );
+        return <p className="empty-state">Nicio tranzacție găsită.</p>;
     }
 
     return (
-        <div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
             {transactions.map((transaction) => (
-                <TransactionCard
-                    key={transaction.transactionId}
-                    transaction={transaction}
-                />
+                <TransactionCard key={transaction.transactionId} transaction={transaction} />
             ))}
         </div>
     );

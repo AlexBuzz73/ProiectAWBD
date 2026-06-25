@@ -1,50 +1,27 @@
 function TransactionCard({ transaction }) {
-    const formattedDate = new Date(transaction.createdAt).toLocaleString();
+    const formattedDate = new Date(transaction.createdAt).toLocaleString("ro-RO");
+    const status = transaction.status?.toLowerCase() || "";
+    const statusClass = `status-${status}`;
+
+    const badgeClass = {
+        executed: "badge-executed",
+        pending_execution: "badge-pending",
+        failed: "badge-failed",
+        draft: "badge-inactive",
+        authorized: "badge-pending",
+    }[status] || "badge-inactive";
 
     return (
-        <div>
-            <p>
-                <strong>Type:</strong> {transaction.transactionType}
-            </p>
-
-            <p>
-                <strong>Amount:</strong> {transaction.amount} {transaction.currency}
-            </p>
-
-            <p>
-                <strong>Status:</strong> {transaction.status}
-            </p>
-
-            <p>
-                <strong>Description:</strong>{" "}
-                {transaction.description || "-"}
-            </p>
-
-            <p>
-                <strong>Category:</strong>{" "}
-                {transaction.categoryName || "-"}
-            </p>
-
-            <p>
-                <strong>Date:</strong> {formattedDate}
-            </p>
-
-            <p>
-                <strong>Source:</strong>{" "}
-                {transaction.sourceAccountAlias || transaction.sourceAccountIban || "-"}
-            </p>
-
-            <p>
-                <strong>Destination account:</strong>{" "}
-                {
-                    transaction.destinationAccountAlias
-                    || transaction.destinationAccountIban
-                    || transaction.destinationIban
-                    || "-"
-                }
-            </p>
-
-            <hr />
+        <div className={`transaction-card ${statusClass}`}>
+            <div>
+                <p><strong>{transaction.transactionType}</strong> — {transaction.description || "fără descriere"}</p>
+                <p>Categorie: {transaction.categoryName || "—"} &nbsp;·&nbsp; {formattedDate}</p>
+                <p>Din: {transaction.sourceAccountAlias || transaction.sourceAccountIban || "—"} → {transaction.destinationAccountAlias || transaction.destinationAccountIban || transaction.destinationIban || "—"}</p>
+            </div>
+            <div style={{ textAlign: "right" }}>
+                <div className="amount">{transaction.amount?.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} {transaction.currency}</div>
+                <span className={`badge ${badgeClass}`}>{transaction.status}</span>
+            </div>
         </div>
     );
 }

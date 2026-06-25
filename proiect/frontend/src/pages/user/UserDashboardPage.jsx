@@ -173,7 +173,7 @@ function UserDashboardPage() {
     }
 
     return (
-        <div>
+        <div className="page">
             <h1>User Dashboard</h1>
 
             <p>
@@ -304,7 +304,7 @@ function UserDashboardPage() {
 
             <h2>Quick Actions</h2>
 
-            <ul>
+            <ul className="quick-actions">
                 <li>
                     <Link to="/accounts/new">
                         Create New Bank Account

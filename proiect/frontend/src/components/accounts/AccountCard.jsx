@@ -1,29 +1,15 @@
 import { Link } from "react-router-dom";
 
 function AccountCard({ account }) {
+    const statusClass = `status-${account.status?.toLowerCase() || "active"}`;
+
     return (
-        <div>
+        <div className={`account-card card-status ${statusClass}`}>
             <h3>{account.alias}</h3>
-
-            <p>
-                <strong>IBAN:</strong> {account.iban}
-            </p>
-
-            <p>
-                <strong>Currency:</strong> {account.currency}
-            </p>
-
-            <p>
-                <strong>Balance:</strong> {account.balance}
-            </p>
-
-            <p>
-                <strong>Role:</strong> {account.accountRole}
-            </p>
-
-            <Link to={`/accounts/${account.accountId}`}>
-                View Details
-            </Link>
+            <div className="balance">{account.balance?.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} {account.currency}</div>
+            <div className="iban">{account.iban}</div>
+            <p><strong>Rol:</strong> {account.accountRole}</p>
+            <Link to={`/accounts/${account.accountId}`}>Vezi detalii →</Link>
         </div>
     );
 }
