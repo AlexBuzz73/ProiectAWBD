@@ -121,7 +121,7 @@ function CategoriesPage() {
     }
 
     return (
-        <div>
+        <div className="page">
             <h1>Categories</h1>
 
             <Link to="/dashboard">

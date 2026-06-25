@@ -31,7 +31,7 @@ function RevokeAccessPage() {
     };
 
     return (
-        <div>
+        <div className="page">
             <h1>Revocare acces cont partajat</h1>
 
             <p>

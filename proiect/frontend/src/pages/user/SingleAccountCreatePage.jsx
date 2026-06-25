@@ -30,7 +30,7 @@ function SingleAccountCreatePage() {
     };
 
     return (
-        <div>
+        <div className="page">
             <h1>Create Single Account</h1>
 
             {error && (

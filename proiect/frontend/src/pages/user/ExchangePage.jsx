@@ -58,7 +58,7 @@ function ExchangePage() {
     }
 
     return (
-        <div>
+        <div className="page">
             <h1>Schimb valutar</h1>
 
             {loading && <p>Se încarcă...</p>}

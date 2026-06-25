@@ -64,7 +64,7 @@ function UserLimitsPage() {
     };
 
     return (
-        <div>
+        <div className="page">
             <h1>Manage Transaction Limits</h1>
 
             <p>

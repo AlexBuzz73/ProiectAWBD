@@ -58,7 +58,7 @@ function TransferPage() {
     }
 
     return (
-        <div>
+        <div className="page">
             <h1>Transfer între conturile proprii</h1>
 
             {loading && <p>Se încarcă...</p>}

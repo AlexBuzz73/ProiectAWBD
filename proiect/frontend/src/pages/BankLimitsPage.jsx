@@ -1,68 +1,67 @@
-import {useEffect, useState} from "react";
-import LimitsForm from "../components/LimitsForm.jsx";
-import {getBankLimits, updateBankLimits, deleteBankLimits, updateUserLimits, deleteUserLimits} from "../api/limitApi.js";
+import { useEffect, useState } from "react";
+import BankLimitsForm from "../components/limits/BankLimitsForm.jsx";
+import { getBankLimits, updateBankLimits } from "../api/limitApi.js";
 
 function BankLimitsPage() {
     const [limits, setLimits] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState("");
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+
+    const loadLimits = async () => {
+        setLoading(true);
+        setLoadError("");
+        try {
+            const data = await getBankLimits();
+            setLimits(data);
+        } catch (err) {
+            setLoadError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         loadLimits();
     }, []);
 
-    const loadLimits = async () => {
+    const handleSubmit = async (formData) => {
+        setSubmitting(true);
+        setError("");
+        setMessage("");
         try {
-            const data = await getBankLimits(limits);
-            setLimits(data);
-            setError("");
+            const updated = await updateBankLimits(formData);
+            setLimits(updated);
+            setMessage("Limitele globale au fost actualizate.");
         } catch (err) {
             setError(err.message);
+        } finally {
+            setSubmitting(false);
         }
     };
 
-    const handleSubmit = async (formatData) => {
-        try {
-            const updated = await updateBankLimits(limits, formatData);
-            setLimits(updated);
-            setMessage("Bank Limits updated");
-            setError("");
-        } catch (err) {
-            setError(err.message);
-            setMessage("Bank Limits update error");
-        }
-    }
-
-    const handleDelete = async () => {
-        try {
-            await deleteBankLimits(limits);
-            setMessage("Bank Limits deleted");
-            setError("");
-            loadLimits();
-        } catch (err) {
-            setError(err.message);
-            setMessage("Bank Limits delete error");
-        }
-    }
-
-    if (!message) {
-        return <p> Loading globl limits...</p>
-    }
-
     return (
-        <div>
-            <h1>Configure global limits</h1>
+        <div className="page">
+            <h1>Configurare limite globale</h1>
 
+            {loading && <p>Se încarcă...</p>}
+            {loadError && <p style={{ color: "red" }}>{loadError}</p>}
             {message && <p style={{ color: "green" }}>{message}</p>}
             {error && <p style={{ color: "red" }}>{error}</p>}
 
-            <LimitsForm
-                title="Global bank limits"
-                initialValues={limits}
-                onSubmit={handleSubmit}
-            />
+            {!loading && !loadError && (
+                <BankLimitsForm
+                    initialValues={limits}
+                    onSubmit={handleSubmit}
+                    submitting={submitting}
+                />
+            )}
 
-            <button onClick={handleDelete}> Delete Bank Limits</button>
+            <p>
+                <a href="/admin/dashboard">Înapoi la dashboard</a>
+            </p>
         </div>
     );
 }

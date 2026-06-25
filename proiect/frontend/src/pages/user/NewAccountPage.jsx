@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 function NewAccountPage() {
     return (
-        <div>
+        <div className="page">
             <h1>Create New Account</h1>
 
             <p>

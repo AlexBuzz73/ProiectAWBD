@@ -1,28 +1,25 @@
 function CategoryCard({ category, onDelete }) {
-    const isSystemCategory = category.isSystem === "Y";
+    const isSystem = category.isSystem === "Y";
 
     return (
-        <div>
-            <h3>{category.name}</h3>
-
-            <p>
-                <strong>Type:</strong> {isSystemCategory ? "System" : "Custom"}
-            </p>
-
-            <p>
-                <strong>Status:</strong> {category.status}
-            </p>
-
-            {!isSystemCategory && (
+        <div className="category-card">
+            <div>
+                <h3>{category.name}</h3>
+                <p>
+                    <span className={`badge ${isSystem ? "badge-admin" : "badge-user"}`}>
+                        {isSystem ? "Sistem" : "Personalizată"}
+                    </span>
+                </p>
+            </div>
+            {!isSystem && (
                 <button
                     type="button"
+                    className="btn-danger btn-sm"
                     onClick={() => onDelete(category.categoryId)}
                 >
-                    Delete
+                    Șterge
                 </button>
             )}
-
-            <hr />
         </div>
     );
 }

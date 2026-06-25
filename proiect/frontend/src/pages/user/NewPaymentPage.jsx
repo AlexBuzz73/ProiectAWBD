@@ -58,7 +58,7 @@ function NewPaymentPage() {
     }
 
     return (
-        <div>
+        <div className="page">
             <h1>Plată nouă</h1>
 
             {loading && <p>Se încarcă...</p>}

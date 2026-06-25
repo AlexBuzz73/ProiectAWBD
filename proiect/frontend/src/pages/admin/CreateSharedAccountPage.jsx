@@ -22,7 +22,7 @@ function CreateSharedAccountPage() {
     };
 
     return (
-        <div>
+        <div className="page">
             <h1>Cont partajat nou</h1>
 
             {message && <p style={{ color: "green" }}>{message}</p>}
