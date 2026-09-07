@@ -21,4 +21,14 @@ public interface AccountService {
     AccountResponseDTO createSharedAccount(SharedAccountRequest dto);
 
     void revokeAccountAccess(Long accountId, String email);
+
+    AccountInternalSummaryDTO getAccountInternalSummary(Long accountId);
+
+    AccountInternalSummaryDTO getAccountInternalSummaryByIban(String iban);
+
+    AccountInternalSummaryDTO debitAccount(Long accountId, java.math.BigDecimal amount, String operationId);
+
+    AccountInternalSummaryDTO creditAccount(Long accountId, java.math.BigDecimal amount, String operationId);
+
+    boolean checkUserAccountAccess(Long accountId, Integer userId, String requiredRole);
 }

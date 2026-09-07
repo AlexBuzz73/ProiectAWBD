@@ -234,4 +234,111 @@ public class AccountServiceImpl implements AccountService {
 
         return Sort.by(sortDirection, sortProperty);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountInternalSummaryDTO getAccountInternalSummary(Long accountId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contul cu id " + accountId + " nu a fost gasit"));
+        return new AccountInternalSummaryDTO(
+                account.getAccountId(),
+                account.getIban(),
+                account.getAlias(),
+                account.getCurrency(),
+                account.getBalance(),
+                account.getStatus()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountInternalSummaryDTO getAccountInternalSummaryByIban(String iban) {
+        Account account = accountRepository.findByIban(iban)
+                .orElseThrow(() -> new ResourceNotFoundException("Contul cu IBAN-ul " + iban + " nu a fost gasit"));
+        return new AccountInternalSummaryDTO(
+                account.getAccountId(),
+                account.getIban(),
+                account.getAlias(),
+                account.getCurrency(),
+                account.getBalance(),
+                account.getStatus()
+        );
+    }
+
+    @Override
+    @Transactional
+    public AccountInternalSummaryDTO debitAccount(Long accountId, java.math.BigDecimal amount, String operationId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contul cu id " + accountId + " nu a fost gasit"));
+
+        if (!"ACTIVE".equalsIgnoreCase(account.getStatus())) {
+            throw new IllegalArgumentException("Contul sursa nu este activ!");
+        }
+
+        if (account.getBalance().compareTo(amount) < 0) {
+            throw new IllegalArgumentException("Fonduri insuficiente!");
+        }
+
+        account.setBalance(account.getBalance().subtract(amount));
+        account.setUpdatedAt(new Date());
+        Account saved = accountRepository.save(account);
+        log.info("Debited {} {} from account {} (operationId: {})", amount, saved.getCurrency(), accountId, operationId);
+
+        return new AccountInternalSummaryDTO(
+                saved.getAccountId(),
+                saved.getIban(),
+                saved.getAlias(),
+                saved.getCurrency(),
+                saved.getBalance(),
+                saved.getStatus()
+        );
+    }
+
+    @Override
+    @Transactional
+    public AccountInternalSummaryDTO creditAccount(Long accountId, java.math.BigDecimal amount, String operationId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contul cu id " + accountId + " nu a fost gasit"));
+
+        if (!"ACTIVE".equalsIgnoreCase(account.getStatus())) {
+            throw new IllegalArgumentException("Contul destinatie nu este activ!");
+        }
+
+        account.setBalance(account.getBalance().add(amount));
+        account.setUpdatedAt(new Date());
+        Account saved = accountRepository.save(account);
+        log.info("Credited {} {} to account {} (operationId: {})", amount, saved.getCurrency(), accountId, operationId);
+
+        return new AccountInternalSummaryDTO(
+                saved.getAccountId(),
+                saved.getIban(),
+                saved.getAlias(),
+                saved.getCurrency(),
+                saved.getBalance(),
+                saved.getStatus()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean checkUserAccountAccess(Long accountId, Integer userId, String requiredRole) {
+        java.util.Optional<AccountAccess> accessOpt = accountAccessRepository.findByAccountAccountIdAndUserIdAndStatus(accountId, userId, "ACTIVE");
+        if (accessOpt.isEmpty()) {
+            return false;
+        }
+        if (requiredRole == null || requiredRole.isBlank()) {
+            return true;
+        }
+        String userRole = accessOpt.get().getAccessRole();
+        if ("OWNER".equalsIgnoreCase(userRole)) {
+            return true;
+        }
+        if ("CO_OWNER".equalsIgnoreCase(userRole)) {
+            return !"OWNER".equalsIgnoreCase(requiredRole);
+        }
+        if ("VIEWER".equalsIgnoreCase(userRole)) {
+            return "VIEWER".equalsIgnoreCase(requiredRole) || "READ".equalsIgnoreCase(requiredRole);
+        }
+        return false;
+    }
 }
