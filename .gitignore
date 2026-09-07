@@ -12,3 +12,4 @@ Thumbs.db
 # Root junction
 /user-service
 /account-service
+/transaction-service

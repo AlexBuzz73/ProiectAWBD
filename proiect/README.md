@@ -412,18 +412,21 @@ Scenariile E2E acoperite:
 - [x] Suită exhaustivă de 219 teste backend și 10 teste frontend (unit + E2E).
 - [x] Acoperire de cod JaCoCo peste 77% (peste pragul minim de 70%).
 
-### Pași Următori (Tranziția către Microservicii)
-1. Descompunerea monolitului în microservicii de domeniu:
-   - `user-service` (utilizatori, persoane fizice, autentificare).
-   - `account-service` (conturi, acces conturi, carduri, limite).
-   - `transaction-service` (tranzacții, transferuri, plăți programate, categorii, schimb valutar).
-2. Service Discovery cu Netflix Eureka (`eureka-server`).
-3. Comunicație inter-servicii declarativă cu Spring Cloud OpenFeign.
-4. API Gateway (Spring Cloud Gateway) cu rutare și rate limiting.
-5. Autentificare distribuită pe bază de token-uri JWT / OAuth2 Resource Server.
-6. Reziliență cu Resilience4j (CircuitBreaker, Retry, RateLimiter).
-7. Observabilitate distribuită: Spring Boot Actuator, Prometheus și Grafana.
-8. Cache distribuit cu Redis.
-9. Configurație centralizată cu Spring Cloud Config Server.
-10. Coordonarea tranzacțiilor distribuite prin Saga Pattern.
-11. Containerizare completă cu Docker și orchestrare cu Docker Compose.
+### Microservicii Extrase și Funcționale
+- [x] **`user-service` (Port 8081)**: Deține `user_db` (`users`, `individuals`), autentificare JWT RS256, hashing BCrypt, endpoint public JWKS (`/.well-known/jwks.json`), 21 teste PASS, ~86% JaCoCo.
+- [x] **`account-service`** (Port 8082): Deține `account_db` (`accounts`, `account_access`, `cards`, `bank_limits`, `user_limits`), OAuth2 Resource Server RS256, model monetar `BigDecimal`, versionare optimistă `@Version`, 37 teste PASS, ~80% JaCoCo.
+- [x] **`transaction-service`** (Port 8083): Deține `transaction_db` (`transactions`, `scheduled_payments`, `exchange_rates`, `categories`, `tags`, `transaction_tags`), OAuth2 Resource Server RS256, plăți standard și urgente, transferuri proprii, schimb valutar BNR cu fallback, plăți programate, joburi de fundal, 57 teste PASS, ~77% JaCoCo.
+- [x] **Testare Live Multi-Serviciu E2E**: Toate cele 3 microservicii testate live integrat (16/16 pași PASS).
+- [x] **Regresie Monolit**: 219 teste monolit PASS sub tag-ul git `monolith-stable`.
+
+### Pași Următori (Faza 4: Infrastructură Distribuită și Integrare)
+1. Service Discovery cu Netflix Eureka (`eureka-server` pe port 8761).
+2. API Gateway (Spring Cloud Gateway) cu rutare unificată și validare JWT.
+3. Comunicație declarativă inter-servicii cu Spring Cloud OpenFeign și load balancing.
+4. Reziliență cu Resilience4j (CircuitBreaker, Retry, RateLimiter).
+5. Tranzacții distribuite cu Saga Orchestrator și compensare automată.
+6. Observabilitate distribuită: Spring Boot Actuator, Prometheus și Grafana.
+7. Cache distribuit cu Redis.
+8. Configurație centralizată cu Spring Cloud Config Server.
+9. Containerizare completă cu Docker și orchestrare cu Docker Compose.
+

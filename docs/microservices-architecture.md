@@ -11,7 +11,7 @@ Acest document descrie tranziția aplicației Internet Banking de la arhitectura
 | **`monolith` (proiect)** | `8080` | **STABIL & ACTIV** | Aplicația monolită completă (conturi, plăți, carduri, tranzacții, sesiuni, CSRF). Reprezentată de tag-ul git `monolith-stable`. 219 teste trecute. |
 | **`user-service`** | `8081` | **EXTRAVASAT & ACTIV (Faza 1)** | Gestiune utilizatori, profiluri persoane fizice, autentificare JWT RS256, expunere endpoint RFC 7517 JWKS (`/.well-known/jwks.json`), hashing BCrypt, contor eșecuri, blocare/deblocare admin. Deține exclusiv baza de date `user_db`. 21 teste trecute, ~86% acoperire JaCoCo. |
 | **`account-service`** | `8082` | **EXTRAVASAT & ACTIV (Faza 2)** | Gestiune conturi curente, acces partajat multi-user (`OWNER`, `CO_OWNER`, `VIEWER`), emitere și administrare carduri, limite tranzacționale (bancă + utilizator cu fallback). OAuth2 Resource Server RS256. Deține exclusiv baza de date `account_db`. 37 teste trecute, ~80% acoperire JaCoCo. |
-| **`transaction-service`** | `8083` | **NEEXTRAVASAT (Planificat - Faza 3)** | Plăți standard/urgente, transferuri proprii, plăți programate, schimb valutar, categorii. Momentan deservit de monolit. |
+| **`transaction-service`** | `8083` | **EXTRAVASAT & ACTIV (Faza 3)** | Plăți standard și urgente, transferuri între conturi proprii, schimb valutar, plăți programate, categorii și etichete. Joburi de fundal (`PaymentJob`, `ScheduledPaymentJob`, `ExchangeRateUpdateJob`). OAuth2 Resource Server RS256. Deține exclusiv baza de date `transaction_db`. 57 teste trecute, ~77% acoperire JaCoCo. |
 | **`api-gateway`** | `8080/80` | **NEEXTRAVASAT (Planificat - Faza 4)** | Punct unic de intrare (Spring Cloud Gateway), rutare, validare JWT, rate limiting. |
 | **`eureka-server`** | `8761` | **NEEXTRAVASAT (Planificat - Faza 4)** | Service Discovery & Registry pentru înregistrarea dinamică a microserviciilor. |
 
@@ -23,24 +23,45 @@ Acest document descrie tranziția aplicației Internet Banking de la arhitectura
 graph TD
     Client["Client Web (React / Vite)"] -->|HTTP / Bearer JWT| Gateway["API Gateway (Spring Cloud Gateway) [Viitor]"]
     
-    Gateway -->|Forward cu Header Autorizare| UserService["user-service (Port 8081)\n[EXTRAVASAT & ACTIV]\n- Înregistrare & Login\n- Emitere JWT (RS256)\n- RFC 7517 JWKS Endpoint\n- Gestiune Profile\n- Deblocare Admin"]
-    Gateway -->|Forward cu Header Autorizare| AccountService["account-service (Port 8082)\n[EXTRAVASAT & ACTIV]\n- OAuth2 Resource Server\n- Conturi bancare & IBAN\n- Carduri de debit\n- Limite bancare & per utilizator\n- Acces partajat (OWNER, CO_OWNER, VIEWER)"]
-    Gateway -.->|Forward cu Header Autorizare| TransactionService["transaction-service (Port 8083)\n[NEEXTRAVASAT - În Monolit]\n- Plăți & Transferuri\n- Schimb Valutar\n- Plăți Programate"]
+    Gateway -->|Forward cu Header Autorizare| UserService["user-service (Port 8081)
+[EXTRAVASAT & ACTIV]
+- Înregistrare & Login
+- Emitere JWT (RS256)
+- RFC 7517 JWKS Endpoint
+- Gestiune Profile
+- Deblocare Admin"]
+    Gateway -->|Forward cu Header Autorizare| AccountService["account-service (Port 8082)
+[EXTRAVASAT & ACTIV]
+- OAuth2 Resource Server
+- Conturi bancare & IBAN
+- Carduri de debit
+- Limite bancare & per utilizator
+- Acces partajat (OWNER, CO_OWNER, VIEWER)"]
+    Gateway -->|Forward cu Header Autorizare| TransactionService["transaction-service (Port 8083)
+[EXTRAVASAT & ACTIV]
+- Plăți & Transferuri proprii
+- Schimb Valutar & Curs BNR
+- Plăți Programate
+- Categorii & Etichete
+- Background Jobs"]
 
-    UserService -->|Proprietar exclusiv| UserDB[(user_db\nMySQL / H2)]
-    AccountService -->|Proprietar exclusiv| AccountDB[(account_db\nMySQL / H2)]
-    TransactionService -.->|Proprietar exclusiv| TransactionDB[(transaction_db\nMySQL / H2)]
+    UserService -->|Proprietar exclusiv| UserDB[(user_db
+MySQL / H2)]
+    AccountService -->|Proprietar exclusiv| AccountDB[(account_db
+MySQL / H2)]
+    TransactionService -->|Proprietar exclusiv| TransactionDB[(transaction_db
+MySQL / H2)]
 
     AccountService -->|Validare chei publice RS256 via JWKS| UserService
     AccountService -->|RestClient: Validare utilizatori la partajare cont| UserService
+
+    TransactionService -->|Validare chei publice RS256 via JWKS| UserService
+    TransactionService -->|RestClient + Bearer Token: Verificare sold, debit, credit, limite| AccountService
 
     Eureka["Eureka Service Registry [Viitor]"] -.->|Discovery| UserService
     Eureka -.->|Discovery| AccountService
     Eureka -.->|Discovery| TransactionService
     Eureka -.->|Discovery| Gateway
-
-    TransactionService -.->|OpenFeign / HTTP REST| UserService
-    TransactionService -.->|OpenFeign / HTTP REST| AccountService
 ```
 
 ---
@@ -53,12 +74,13 @@ graph TD
 - **Remember Me:** `TokenBasedRememberMeServices` cu cookie securizat `remember-me` (14 zile).
 - **Protecție CSRF:** **Obligatorie.** Monolitul folosește `CookieCsrfTokenRepository` cu mecanism Double Submit Cookie (`XSRF-TOKEN` cookie + antetul `X-XSRF-TOKEN`). Este strict necesară deoarece browserul trimite automat cookie-urile (`JSESSIONID`) la cererile cross-origin.
 
-### Microserviciile Distribuite (`user-service` și `account-service`)
-- **Autentificare:** Stateless Bearer Token conform standardului OAuth2 Resource Server.
+### Microserviciile Distribuite (`user-service`, `account-service`, `transaction-service`)
+- **Autentificare:** Stateless Bearer Token conform standardului OAuth2 Resource Server (`spring-boot-starter-oauth2-resource-server`).
 - **Identificator:** JSON Web Token (JWT) semnat asimetric cu **RS256** (RSA 2048 biți).
 - **Issuer:** `user-service` emite token-urile și expune cheia publică la `GET /.well-known/jwks.json`.
-- **Resource Server:** `account-service` acționează ca OAuth2 Resource Server, consumând JWKS sau cheia publică și decodând token-urile stateless fără acces la baza de date a `user-service`.
+- **Resource Servers:** `account-service` și `transaction-service` validează token-urile în mod complet stateless prin setul de chei publice furnizat de JWKS.
 - **Transmitere:** Antetul HTTP standard: `Authorization: Bearer <token>`.
+- **Propagare:** La apelurile inter-servicii (ex: `transaction-service` -> `account-service`), clientul HTTP (`AccountClient`) propagă automat header-ul `Authorization: Bearer <token>` extras din cererea curentă a utilizatorului.
 - **Claims incluse în JWT:**
   - `iss`: `"user-service"`
   - `sub`: email-ul utilizatorului
@@ -96,9 +118,46 @@ Fiecare microserviciu deține în mod suveran schema de bază de date proprie. N
   - Soldul este modelat cu `BigDecimal` (precizie 19, scară 4).
   - Blocare optimistă implementată prin `@Version private Long version;` pe entitatea `Account`.
 
+### `transaction_db` (Deținut exclusiv de `transaction-service`)
+- **Tabele:** `transactions`, `scheduled_payments`, `exchange_rates`, `categories`, `tags`, `transaction_tags`.
+- **Izolare față de Account și User:** **Zero relații JPA** către entitățile `Account` sau `User`. Toate referințele externe sunt câmpuri scalare:
+  - `Integer initiatedByUserId` (utilizatorul care a inițiat tranzacția)
+  - `Long sourceAccountId` (contul sursă debitat)
+  - `Long destinationAccountId` (contul destinație intern creditat, opțional)
+  - `Integer createdByUserId` pe entitatea `Category` (utilizatorul creator sau `null` pentru categorii de sistem)
+- **Denormalizare și Snapshot-uri Imutabile de Audit:**
+  - Tranzacția salvează snapshot-uri imutabile ale conturilor la momentul execuției: `sourceAccountIban`, `sourceAccountAlias`, `destinationAccountIban`, `destinationAccountAlias`.
+  - Acest mecanism garantează că istoricul financiar rămâne complet și neschimbat chiar dacă un cont bancar este ulterior redenumit sau închis în `account-service`.
+- **Calcul Financiar & Precizie:**
+  - Toate sumele tranzacționate folosesc strict `BigDecimal` cu rotunjire explicită `RoundingMode.HALF_UP` (scară 2 pentru sume, scară 6 pentru cursuri valutare). Nicio valoare de tip `double` nu este utilizată în calcule monetare.
+- **Joburi de Fundal (`@Scheduled`):**
+  - `PaymentJob`: Execută periodic tranzacțiile standard aprobate (`status = PENDING_EXECUTION`).
+  - `ScheduledPaymentJob`: Procesează plățile programate devenite scadente (`status = ACTIVE` și data <= data curentă).
+  - `ExchangeRateUpdateJob`: Preluare zilnică cursuri valutare de la BNR (XML), cu rată locală de fallback preîncărcată (USD, EUR) în cazul indisponibilității serviciului extern.
+
 ---
 
-## 5. Catalog API – Microservicii
+## 5. Tranzacții Distribuite și Pregătire pentru Saga Pattern
+
+În arhitectura monolită, un transfer între două conturi se executa în cadrul unei singure tranzacții ACID locale gestionate de `@Transactional` pe aceeași bază de date.
+
+În arhitectura de microservicii:
+1. `transaction-service` înregistrează tranzacția în `transaction_db`.
+2. Apelează HTTP `POST /api/internal/accounts/{id}/debit` pe `account-service` (baza `account_db`).
+3. Apelează HTTP `POST /api/internal/accounts/{id}/credit` pe `account-service` (baza `account_db`).
+
+> [!WARNING]
+> Anotația Spring `@Transactional` din `transaction-service` NU poate face rollback automat pe baza de date a `account-service` în caz de eroare de rețea sau prăbușire a serviciului.
+
+### Strategia Adoptată în Faza 3:
+- Debitările și creditările sunt apelate secvențial și defensiv.
+- Dacă debitarea eșuează, tranzacția trece în starea `FAILED` și procesul se oprește fără a afecta contul destinație.
+- Dacă debitarea a reușit dar creditarea eșuează, excepția este capturată, starea tranzacției este marcată `FAILED`, iar evenimentul este logat cu detalii complete de reconciliere.
+- **Trecerea la Faza 4:** În faza următoare se va implementa un **Saga Orchestrator** cu tranzacții compensatorii automate (ex: refund/compensate debit pe contul sursă dacă etapa de credit eșuează).
+
+---
+
+## 6. Catalog API – Microservicii
 
 ### `user-service` (Port 8081)
 
@@ -136,3 +195,25 @@ Fiecare microserviciu deține în mod suveran schema de bază de date proprie. N
 | `DELETE` | `/api/admin/bank-limits/{id}` | Bearer JWT | Doar **`ADMIN`** | - | `204 No Content` / `403` | Șterge o configurare de limită bancară |
 | `POST` | `/api/admin/accounts/shared` | Bearer JWT | Doar **`ADMIN`** | `SharedAccountRequest` | `201 Created` / `400` / `404` | Partajează cont între max 2 utilizatori validați via `user-service` |
 | `DELETE` | `/api/admin/accounts/{accId}/access` | Bearer JWT | Doar **`ADMIN`** | `email` (query param) | `204 No Content` / `404` | Revocă accesul unui utilizator la contul specificat |
+| `GET` | `/api/internal/accounts/{id}` | Permis intern | Servicii interne | - | `200 OK` (`AccountInternalSummaryDTO`) | Endpoint intern pentru detalii cont |
+| `GET` | `/api/internal/accounts/by-iban/{iban}` | Permis intern | Servicii interne | - | `200 OK` (`AccountInternalSummaryDTO`) | Endpoint intern căutare cont după IBAN |
+| `POST` | `/api/internal/accounts/{id}/debit` | Permis intern | Servicii interne | `DebitRequestDTO` | `200 OK` | Endpoint intern debitare cont |
+| `POST` | `/api/internal/accounts/{id}/credit` | Permis intern | Servicii interne | `CreditRequestDTO` | `200 OK` | Endpoint intern creditare cont |
+| `GET` | `/api/internal/accounts/{id}/access/{userId}/{perm}` | Permis intern | Servicii interne | - | `200 OK` (boolean) | Endpoint intern verificare permisiune cont |
+| `GET` | `/api/internal/accounts/limits/user/{userId}` | Permis intern | Servicii interne | - | `200 OK` (`UserLimitResponseDTO`) | Endpoint intern obținere limite per utilizator |
+
+### `transaction-service` (Port 8083)
+
+| Metodă | Endpoint | Autorizare | Rol Permis | Corp / Parametri | Răspuns | Descriere |
+|---|---|---|---|---|---|---|
+| `POST` | `/api/payments/initiate` | Bearer JWT | Drept `PAY` pe contul sursă | `PaymentRequestDTO` | `200 OK` (`TransactionSummaryDTO`) | Inițiază o plată externă sau internă (standard sau urgentă, cu debitare imediată sau programare) |
+| `POST` | `/api/payments/transfer-own` | Bearer JWT | Drept `PAY` pe sursă, `READ` pe destinație | `OwnAccountTransferDTO` | `200 OK` (`TransactionSummaryDTO`) | Execută transfer instant între două conturi proprii ale utilizatorului |
+| `POST` | `/api/payments/exchange` | Bearer JWT | Drept `PAY` pe sursă, `READ` pe destinație | `CurrencyExchangeDTO` | `200 OK` (`TransactionSummaryDTO`) | Execută schimb valutar la cursul de referință (ex: RON -> EUR) |
+| `GET` | `/api/transactions/user` | Bearer JWT | Oricine autentificat | `page`, `size`, `sortBy`, `direction` | `200 OK` (`PageResponseDTO`) | Istoric complet al tranzacțiilor utilizatorului curent (cu mascare detalii confidențiale) |
+| `GET` | `/api/transactions/account/{accountId}` | Bearer JWT | Drept `READ` pe cont | `page`, `size`, `sortBy`, `direction` | `200 OK` (`PageResponseDTO`) / `403` IDOR | Istoric tranzacții per cont specific (protejat împotriva IDOR) |
+| `GET` | `/api/categories` | Bearer JWT | Oricine autentificat | - | `200 OK` (`List<CategoryResponseDTO>`) | Returnează categoriile active de sistem și cele create de utilizator |
+| `POST` | `/api/categories` | Bearer JWT | Oricine autentificat | `CategoryRequestDTO` | `201 Created` (`CategoryResponseDTO`) | Creează o categorie nouă de cheltuieli pentru utilizatorul curent |
+| `GET` | `/api/categories/{id}` | Bearer JWT | Proprietar sau categorie de sistem | - | `200 OK` (`CategoryResponseDTO`) / `403` / `404` | Detalii categorie dacă este vizibilă utilizatorului |
+| `PUT` | `/api/categories/{id}` | Bearer JWT | Doar proprietarul | `CategoryRequestDTO` | `200 OK` / `403` / `404` | Modifică o categorie proprie (categoriile de sistem sunt imutabile) |
+| `DELETE` | `/api/categories/{id}` | Bearer JWT | Doar proprietarul | - | `204 No Content` / `403` / `404` | Soft-delete categorie proprie (marcare status `INACTIVE`) |
+| `GET` | `/api/categories/paged` | Bearer JWT | Oricine autentificat | `page`, `size`, `sortBy`, `direction` | `200 OK` (`PageResponseDTO`) | Categorii disponibile paginate |
