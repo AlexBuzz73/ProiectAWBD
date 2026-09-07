@@ -25,8 +25,8 @@ function ExchangePage() {
             setLoadError("");
             try {
                 const [accountsData, categoriesData] = await Promise.all([
-                    getActiveAccounts(user.userId),
-                    getCategories(user.userId),
+                    getActiveAccounts(),
+                    getCategories(),
                 ]);
                 setAccounts(accountsData);
                 setCategories(categoriesData);
@@ -44,7 +44,7 @@ function ExchangePage() {
         setSubmitting(true);
         setSubmitError("");
         try {
-            await exchangeCurrency(user.userId, exchangeData);
+            await exchangeCurrency(exchangeData);
             navigate("/dashboard", { state: { message: "Schimbul valutar a fost efectuat cu succes." } });
         } catch (err) {
             setSubmitError(err.message);

@@ -37,7 +37,7 @@ function CategoriesPage() {
         setCategoriesError("");
 
         try {
-            const response = await getCategoriesPaged(user.userId, page, pageSize, sortBy, direction);
+            const response = await getCategoriesPaged(page, pageSize, sortBy, direction);
 
             setCategoriesPage(response);
         } catch (err) {
@@ -48,7 +48,12 @@ function CategoriesPage() {
     };
 
     useEffect(() => {
-        loadCategories();
+        if (!user?.userId) return;
+        let active = true;
+        getCategoriesPaged(page, pageSize, sortBy, direction)
+            .then(data => { if (active) { setCategoriesPage(data); setCategoriesError(""); } })
+            .catch(err => { if (active) setCategoriesError(err.message); });
+        return () => { active = false; };
     }, [user?.userId, page, pageSize, sortBy, direction]);
 
     const handleSortByChange = (event) => {
@@ -78,7 +83,7 @@ function CategoriesPage() {
         }
 
         try {
-            await createCategory(user.userId, {
+            await createCategory({
                 name: categoryName,
             });
 
@@ -102,7 +107,7 @@ function CategoriesPage() {
         setMessage("");
 
         try {
-            await deleteCategory(user.userId, categoryId);
+            await deleteCategory(categoryId);
 
             setMessage("Category deleted successfully.");
             setPage(0);

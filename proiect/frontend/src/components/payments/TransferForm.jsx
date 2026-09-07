@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 function TransferForm({ accounts, categories, onSubmit, submitting }) {
     const [formData, setFormData] = useState({
-        sourceAccountId: "",
+        sourceAccountId: accounts.find((a) => a.accountRole !== "VIEWER")?.accountId ?? "",
         destinationAccountId: "",
         amount: "",
         categoryId: "",
@@ -14,12 +14,6 @@ function TransferForm({ accounts, categories, onSubmit, submitting }) {
 
     const eligibleSourceAccounts = accounts.filter((a) => a.accountRole !== "VIEWER");
 
-    useEffect(() => {
-        if (eligibleSourceAccounts.length > 0 && !formData.sourceAccountId) {
-            setFormData((prev) => ({ ...prev, sourceAccountId: eligibleSourceAccounts[0].accountId }));
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [accounts]);
 
     const sourceAccount = accounts.find((a) => String(a.accountId) === String(formData.sourceAccountId));
 

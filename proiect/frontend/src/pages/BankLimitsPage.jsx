@@ -10,21 +10,12 @@ function BankLimitsPage() {
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
-    const loadLimits = async () => {
-        setLoading(true);
-        setLoadError("");
-        try {
-            const data = await getBankLimits();
-            setLimits(data);
-        } catch (err) {
-            setLoadError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
-        loadLimits();
+        let active = true;
+        getBankLimits().then(data => { if (active) setLimits(data); })
+            .catch(err => { if (active) setLoadError(err.message); })
+            .finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
     }, []);
 
     const handleSubmit = async (formData) => {
@@ -53,6 +44,7 @@ function BankLimitsPage() {
 
             {!loading && !loadError && (
                 <BankLimitsForm
+                    key={JSON.stringify(limits)}
                     initialValues={limits}
                     onSubmit={handleSubmit}
                     submitting={submitting}

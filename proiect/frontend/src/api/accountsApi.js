@@ -1,5 +1,5 @@
-const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/accounts`;
-
+const BASE_URL = `${API_BASE_URL}/accounts`;
+import { apiFetch, API_BASE_URL } from './apiClient.js';
 async function getErrorMessage(response, fallbackMessage) {
     const contentType = response.headers.get("content-type");
 
@@ -14,8 +14,8 @@ async function getErrorMessage(response, fallbackMessage) {
     return message || fallbackMessage;
 }
 
-export async function createSingleAccount(accountData, userId) {
-    const response = await fetch(`${BASE_URL}?userId=${userId}`, {
+export async function createSingleAccount(accountData) {
+    const response = await apiFetch(`${BASE_URL}`, {
         credentials: 'include',
         method: "POST",
         headers: {
@@ -32,8 +32,8 @@ export async function createSingleAccount(accountData, userId) {
     return response.json();
 }
 
-export async function getActiveAccounts(userId) {
-    const response = await fetch(`${BASE_URL}?userId=${userId}`, {
+export async function getActiveAccounts() {
+    const response = await apiFetch(`${BASE_URL}`, {
         credentials: 'include' });
 
     if (!response.ok) {
@@ -44,8 +44,8 @@ export async function getActiveAccounts(userId) {
     return response.json();
 }
 
-export async function getAccountDetails(accountId, userId) {
-    const response = await fetch(`${BASE_URL}/${accountId}?userId=${userId}`, { credentials: 'include' });
+export async function getAccountDetails(accountId) {
+    const response = await apiFetch(`${BASE_URL}/${accountId}`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load account details.");
@@ -55,8 +55,8 @@ export async function getAccountDetails(accountId, userId) {
     return response.json();
 }
 
-export async function closeAccount(accountId, userId) {
-    const response = await fetch(`${BASE_URL}/${accountId}/close?userId=${userId}`, {
+export async function closeAccount(accountId) {
+    const response = await apiFetch(`${BASE_URL}/${accountId}/close`, {
         credentials: 'include',
         method: "PUT",
     });
@@ -67,9 +67,9 @@ export async function closeAccount(accountId, userId) {
     }
 }
 
-export async function getActiveAccountsPaged(userId, page, size, sortBy, direction) {
-    const params = new URLSearchParams({userId, page, size, sortBy, direction,});
-    const response = await fetch(`${BASE_URL}/paged?${params.toString()}`, { credentials: 'include' });
+export async function getActiveAccountsPaged(page, size, sortBy, direction) {
+    const params = new URLSearchParams({page, size, sortBy, direction,});
+    const response = await apiFetch(`${BASE_URL}/paged?${params.toString()}`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load paged accounts.");
@@ -79,8 +79,8 @@ export async function getActiveAccountsPaged(userId, page, size, sortBy, directi
     return response.json();
 }
 
-export async function getAccountCurrencySummary(userId) {
-    const response = await fetch(`${BASE_URL}/summary/currency?userId=${userId}`, { credentials: 'include' });
+export async function getAccountCurrencySummary() {
+    const response = await apiFetch(`${BASE_URL}/summary/currency`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load account summary.");

@@ -1,5 +1,5 @@
-const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/users`;
-
+const BASE_URL = `${API_BASE_URL}/users`;
+import { apiFetch, API_BASE_URL } from './apiClient.js';
 async function getErrorMessage(response, fallbackMessage) {
     const contentType = response.headers.get("content-type");
 
@@ -14,8 +14,8 @@ async function getErrorMessage(response, fallbackMessage) {
     return message || fallbackMessage;
 }
 
-export async function getCardForAccount(userId, accountId) {
-    const response = await fetch(`${BASE_URL}/${userId}/accounts/${accountId}/card`, { credentials: 'include' });
+export async function getCardForAccount(accountId) {
+    const response = await apiFetch(`${BASE_URL}/me/accounts/${accountId}/card`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load card.");
@@ -31,8 +31,8 @@ export async function getCardForAccount(userId, accountId) {
     return JSON.parse(text);
 }
 
-export async function createCard(userId, accountId) {
-    const response = await fetch(`${BASE_URL}/${userId}/accounts/${accountId}/card`, {
+export async function createCard(accountId) {
+    const response = await apiFetch(`${BASE_URL}/me/accounts/${accountId}/card`, {
         method: "POST",
         credentials: 'include',
     });
@@ -45,8 +45,8 @@ export async function createCard(userId, accountId) {
     return response.json();
 }
 
-export async function updateCardStatus(userId, accountId, cardId, status) {
-    const response = await fetch(`${BASE_URL}/${userId}/accounts/${accountId}/card/${cardId}/status/${status}`, {
+export async function updateCardStatus(accountId, cardId, status) {
+    const response = await apiFetch(`${BASE_URL}/me/accounts/${accountId}/card/${cardId}/status/${status}`, {
         method: "PATCH",
         credentials: 'include',
     });

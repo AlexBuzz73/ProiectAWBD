@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -107,6 +108,8 @@ class AdminFlowsIntegrationTest {
     @Test
     void unlockUserByEmail_blockedUser_resetsStatusAndFailedAttempts() throws Exception {
         mockMvc.perform(post("/api/admin/unlock-user")
+                        .with(user("admin-test").roles("ADMIN"))
+                        .with(csrf())
                         .param("email", blockedUser.getEmail()))
                 .andExpect(status().isOk());
 
@@ -118,6 +121,8 @@ class AdminFlowsIntegrationTest {
     @Test
     void unlockUserByEmail_unknownEmail_returnsBadRequest() throws Exception {
         mockMvc.perform(post("/api/admin/unlock-user")
+                        .with(user("admin-test").roles("ADMIN"))
+                        .with(csrf())
                         .param("email", "nu-exista@test.com"))
                 .andExpect(status().isBadRequest());
     }
@@ -138,6 +143,8 @@ class AdminFlowsIntegrationTest {
                 """.formatted(ownerUser.getEmail(), coOwnerUser.getEmail());
 
         mockMvc.perform(post("/api/admin/create-shared-account")
+                        .with(user("admin-test").roles("ADMIN"))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
                 .andExpect(status().isOk())
@@ -168,6 +175,8 @@ class AdminFlowsIntegrationTest {
                 """.formatted(coOwnerUser.getEmail());
 
         mockMvc.perform(post("/api/admin/create-shared-account")
+                        .with(user("admin-test").roles("ADMIN"))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
                 .andExpect(status().isBadRequest());
@@ -182,6 +191,8 @@ class AdminFlowsIntegrationTest {
         AccountAccess coOwnerAccess = grantAccess(coOwnerUser, sharedAccount, "CO_OWNER");
 
         mockMvc.perform(delete("/api/admin/accounts/" + sharedAccount.getAccountId() + "/access")
+                        .with(user("admin-test").roles("ADMIN"))
+                        .with(csrf())
                         .param("email", coOwnerUser.getEmail()))
                 .andExpect(status().isOk());
 
@@ -195,6 +206,8 @@ class AdminFlowsIntegrationTest {
         AccountAccess soleOwnerAccess = grantAccess(ownerUser, sharedAccount, "OWNER");
 
         mockMvc.perform(delete("/api/admin/accounts/" + sharedAccount.getAccountId() + "/access")
+                        .with(user("admin-test").roles("ADMIN"))
+                        .with(csrf())
                         .param("email", ownerUser.getEmail()))
                 .andExpect(status().isBadRequest());
 

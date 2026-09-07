@@ -25,8 +25,8 @@ function TransferPage() {
             setLoadError("");
             try {
                 const [accountsData, categoriesData] = await Promise.all([
-                    getActiveAccounts(user.userId),
-                    getCategories(user.userId),
+                    getActiveAccounts(),
+                    getCategories(),
                 ]);
                 setAccounts(accountsData);
                 setCategories(categoriesData);
@@ -44,7 +44,7 @@ function TransferPage() {
         setSubmitting(true);
         setSubmitError("");
         try {
-            await transferOwnAccounts(user.userId, transferData);
+            await transferOwnAccounts(transferData);
             navigate("/dashboard", { state: { message: "Transferul a fost efectuat cu succes." } });
         } catch (err) {
             setSubmitError(err.message);

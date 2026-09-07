@@ -34,24 +34,24 @@ function AccountDetailsPage() {
     const [transactionsSortBy, setTransactionsSortBy] = useState("createdAt");
     const [transactionsDirection, setTransactionsDirection] = useState("desc");
 
+
     useEffect(() => {
+        const loadAccountDetails = async () => {
+            setLoading(true);
+            setError("");
+
+            try {
+                const response = await getAccountDetails(accountId);
+
+                setAccount(response);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
         loadAccountDetails();
-    }, []);
-
-    const loadAccountDetails = async () => {
-        setLoading(true);
-        setError("");
-
-        try {
-            const response = await getAccountDetails(accountId, user.userId);
-
-            setAccount(response);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [accountId, user?.userId]);
 
     useEffect(() => {
         if (!user?.userId) {
@@ -63,7 +63,7 @@ function AccountDetailsPage() {
             setTransactionsError("");
 
             try {
-                const response = await getAccountTransactionsPaged(accountId, user.userId, transactionsPageNumber, transactionsPageSize, transactionsSortBy, transactionsDirection);
+                const response = await getAccountTransactionsPaged(accountId, transactionsPageNumber, transactionsPageSize, transactionsSortBy, transactionsDirection);
 
                 setTransactionsPage(response);
             } catch (err) {
@@ -87,7 +87,7 @@ function AccountDetailsPage() {
         setError("");
 
         try {
-            await closeAccount(accountId, user.userId);
+            await closeAccount(accountId);
 
             navigate("/dashboard", {
                 state: {

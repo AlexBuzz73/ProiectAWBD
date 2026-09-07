@@ -1,5 +1,5 @@
-const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/admin`;
-
+const BASE_URL = `${API_BASE_URL}/admin`;
+import { apiFetch, API_BASE_URL } from './apiClient.js';
 async function getErrorMessage(response, fallbackMessage) {
     const contentType = response.headers.get("content-type");
 
@@ -15,7 +15,7 @@ async function getErrorMessage(response, fallbackMessage) {
 }
 
 export async function unlockUserByEmail(email) {
-    const response = await fetch(`${BASE_URL}/unlock-user?email=${encodeURIComponent(email)}`, {
+    const response = await apiFetch(`${BASE_URL}/unlock-user?email=${encodeURIComponent(email)}`, {
         method: "POST",
         credentials: 'include',
     });
@@ -29,7 +29,7 @@ export async function unlockUserByEmail(email) {
 }
 
 export async function createSharedAccount(sharedAccountData) {
-    const response = await fetch(`${BASE_URL}/create-shared-account`, {
+    const response = await apiFetch(`${BASE_URL}/create-shared-account`, {
         method: "POST",
         credentials: 'include',
         headers: {
@@ -47,7 +47,7 @@ export async function createSharedAccount(sharedAccountData) {
 }
 
 export async function revokeAccountAccess(accountId, email) {
-    const response = await fetch(`${BASE_URL}/accounts/${accountId}/access?email=${encodeURIComponent(email)}`, {
+    const response = await apiFetch(`${BASE_URL}/accounts/${accountId}/access?email=${encodeURIComponent(email)}`, {
         method: "DELETE",
         credentials: 'include',
     });

@@ -1,17 +1,20 @@
 import { Link, useNavigate } from "react-router-dom";
 import { getLoggedUser, removeLoggedUser } from "../../utils/authStorage.js";
 import { logoutUser } from "../../api/authApi.js";
+import { useState } from "react";
 
 function Navbar() {
     const navigate = useNavigate();
     const user = getLoggedUser();
+    const [logoutError, setLogoutError] = useState("");
 
     const handleLogout = async () => {
         try{
             await logoutUser();
-        } finally {
             removeLoggedUser();
             navigate("/login", { replace:true });
+        } catch (error) {
+            setLogoutError(error.message);
         }
     };
 
@@ -48,6 +51,7 @@ function Navbar() {
             )}
 
             <div className="navbar-user">
+                {logoutError && <span role="alert">{logoutError}</span>}
                 <span>👤 {user.username}</span>
                 <button
                     type="button"

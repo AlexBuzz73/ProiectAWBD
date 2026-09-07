@@ -1,5 +1,5 @@
-const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/users`;
-
+const BASE_URL = `${API_BASE_URL}/users`;
+import { apiFetch, API_BASE_URL } from './apiClient.js';
 async function getErrorMessage(response, fallbackMessage) {
     const contentType = response.headers.get("content-type");
 
@@ -14,8 +14,8 @@ async function getErrorMessage(response, fallbackMessage) {
     return message || fallbackMessage;
 }
 
-export async function getCategories(userId) {
-    const response = await fetch(`${BASE_URL}/${userId}/categories`, { credentials: 'include' });
+export async function getCategories() {
+    const response = await apiFetch(`${BASE_URL}/me/categories`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load categories.");
@@ -25,9 +25,9 @@ export async function getCategories(userId) {
     return response.json();
 }
 
-export async function getCategoriesPaged(userId, page, size, sortBy, direction) {
+export async function getCategoriesPaged(page, size, sortBy, direction) {
     const params = new URLSearchParams({ page, size, sortBy, direction });
-    const response = await fetch(`${BASE_URL}/${userId}/categories/paged?${params.toString()}`, { credentials: 'include' });
+    const response = await apiFetch(`${BASE_URL}/me/categories/paged?${params.toString()}`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load categories.");
@@ -37,8 +37,8 @@ export async function getCategoriesPaged(userId, page, size, sortBy, direction) 
     return response.json();
 }
 
-export async function createCategory(userId, categoryData) {
-    const response = await fetch(`${BASE_URL}/${userId}/categories`, {
+export async function createCategory(categoryData) {
+    const response = await apiFetch(`${BASE_URL}/me/categories`, {
         method: "POST",
         credentials: 'include',
         headers: {
@@ -55,8 +55,8 @@ export async function createCategory(userId, categoryData) {
     return response.json();
 }
 
-export async function deleteCategory(userId, categoryId) {
-    const response = await fetch(`${BASE_URL}/${userId}/categories/${categoryId}`, {
+export async function deleteCategory(categoryId) {
+    const response = await apiFetch(`${BASE_URL}/me/categories/${categoryId}`, {
         method: "DELETE",
         credentials: 'include',
     });

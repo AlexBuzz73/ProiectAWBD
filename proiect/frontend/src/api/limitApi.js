@@ -1,5 +1,5 @@
-const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/admin`;
-
+const BASE_URL = `${API_BASE_URL}/admin`;
+import { apiFetch, API_BASE_URL } from './apiClient.js';
 async function getErrorMessage(response, fallbackMessage) {
     const contentType = response.headers.get("content-type");
 
@@ -15,7 +15,7 @@ async function getErrorMessage(response, fallbackMessage) {
 }
 
 export async function getBankLimits() {
-    const response = await fetch(`${BASE_URL}/bank-limits`, { credentials: 'include' });
+    const response = await apiFetch(`${BASE_URL}/bank-limits`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load bank limits.");
@@ -26,7 +26,7 @@ export async function getBankLimits() {
 }
 
 export async function updateBankLimits(limitsData) {
-    const response = await fetch(`${BASE_URL}/bank-limits`, {
+    const response = await apiFetch(`${BASE_URL}/bank-limits`, {
         method: "PUT",
         credentials: 'include',
         headers: {

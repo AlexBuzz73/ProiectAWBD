@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getLoggedUser, removeLoggedUser } from "../../utils/authStorage.js";
 import { logoutUser } from "../../api/authApi.js";
@@ -5,11 +6,16 @@ import { logoutUser } from "../../api/authApi.js";
 function AdminDashboardPage() {
     const navigate = useNavigate();
     const user = getLoggedUser();
+    const [logoutError, setLogoutError] = useState("");
 
     const handleLogout = async () => {
-        await logoutUser();
-        removeLoggedUser();
-        navigate("/login");
+        try {
+            await logoutUser();
+            removeLoggedUser();
+            navigate("/login");
+        } catch (error) {
+            setLogoutError(error.message);
+        }
     };
 
     if (!user) {
@@ -45,6 +51,7 @@ function AdminDashboardPage() {
                 </li>
             </ul>
 
+            {logoutError && <p role="alert">{logoutError}</p>}
             <button onClick={handleLogout}>
                 Logout
             </button>

@@ -1,5 +1,5 @@
-const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/auth`
-
+const BASE_URL = `${API_BASE_URL}/auth`
+import { apiFetch, API_BASE_URL } from './apiClient.js';
 async function getErrorMessage(response, fallbackMessage) {
     const contentType = response.headers.get("content-type");
 
@@ -15,7 +15,7 @@ async function getErrorMessage(response, fallbackMessage) {
 }
 
 export async function validateIndividual(individualData) {
-    const response = await fetch(`${BASE_URL}/validate-individual`, {
+    const response = await apiFetch(`${BASE_URL}/validate-individual`, {
         method: "POST",
         credentials: 'include',
         headers: {
@@ -31,7 +31,7 @@ export async function validateIndividual(individualData) {
 }
 
 export async function registerUser(registrationData) {
-    const response = await fetch(`${BASE_URL}/register`, {
+    const response = await apiFetch(`${BASE_URL}/register`, {
         method: "POST",
         credentials: 'include',
         headers: {
@@ -47,7 +47,7 @@ export async function registerUser(registrationData) {
 }
 
 export async function loginUser(loginData) {
-    const response = await fetch(`${BASE_URL}/login`, {
+    const response = await apiFetch(`${BASE_URL}/login`, {
         method: "POST",
         credentials: 'include',
         headers: {
@@ -65,12 +65,8 @@ export async function loginUser(loginData) {
 }
 
 export async function logoutUser() {
-    try {
-        await fetch(`${BASE_URL}/logout`, {
-            method: "POST",
-            credentials: 'include',
-        });
-    } catch (e) {
-        // ignora erorile de retea la logout - sesiunea locala se curata oricum
+    const response = await apiFetch(`${BASE_URL}/logout`, { method: 'POST' });
+    if (!response.ok) {
+        throw new Error(await getErrorMessage(response, 'Deconectarea a esuat. Incercati din nou.'));
     }
 }

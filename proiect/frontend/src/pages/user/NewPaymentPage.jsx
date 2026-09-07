@@ -25,8 +25,8 @@ function NewPaymentPage() {
             setLoadError("");
             try {
                 const [accountsData, categoriesData] = await Promise.all([
-                    getActiveAccounts(user.userId),
-                    getCategories(user.userId),
+                    getActiveAccounts(),
+                    getCategories(),
                 ]);
                 setAccounts(accountsData);
                 setCategories(categoriesData);
@@ -44,7 +44,7 @@ function NewPaymentPage() {
         setSubmitting(true);
         setSubmitError("");
         try {
-            await initiatePayment(user.userId, paymentData);
+            await initiatePayment(paymentData);
             navigate("/dashboard", { state: { message: "Plata a fost inițiată cu succes." } });
         } catch (err) {
             setSubmitError(err.message);

@@ -15,8 +15,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.util.Date;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 
 @SpringBootTest
@@ -155,6 +157,8 @@ class PaymentFlowsIntegrationTest {
                 """.formatted(accountA1.getAccountId(), category.getCategoryId(), PASSWORD);
 
         mockMvc.perform(post("/api/payments/initiate")
+                        .with(user(userA.getEmail()).roles("USER"))
+                        .with(csrf())
                         .param("userId", String.valueOf(userA.getUserId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
@@ -182,6 +186,8 @@ class PaymentFlowsIntegrationTest {
                 """.formatted(accountA1.getAccountId(), category.getCategoryId());
 
         mockMvc.perform(post("/api/payments/initiate")
+                        .with(user(userA.getEmail()).roles("USER"))
+                        .with(csrf())
                         .param("userId", String.valueOf(userA.getUserId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
@@ -203,6 +209,8 @@ class PaymentFlowsIntegrationTest {
                 """.formatted(accountA1.getAccountId(), category.getCategoryId(), PASSWORD);
 
         mockMvc.perform(post("/api/payments/initiate")
+                        .with(user(userA.getEmail()).roles("USER"))
+                        .with(csrf())
                         .param("userId", String.valueOf(userA.getUserId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
@@ -225,6 +233,8 @@ class PaymentFlowsIntegrationTest {
                 """.formatted(accountA1.getAccountId(), accountA2.getAccountId(), category.getCategoryId(), PASSWORD);
 
         mockMvc.perform(post("/api/payments/transfer-own")
+                        .with(user(userA.getEmail()).roles("USER"))
+                        .with(csrf())
                         .param("userId", String.valueOf(userA.getUserId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
@@ -237,7 +247,7 @@ class PaymentFlowsIntegrationTest {
     }
 
     @Test
-    void transferOwnAccounts_destinationNotOwnedByUser_returnsBadRequest() throws Exception {
+    void transferOwnAccounts_destinationNotOwnedByUser_returnsForbidden() throws Exception {
         // accountB1 apartine lui userB, nu lui userA
         String json = """
                 {
@@ -250,10 +260,12 @@ class PaymentFlowsIntegrationTest {
                 """.formatted(accountA1.getAccountId(), accountB1.getAccountId(), category.getCategoryId(), PASSWORD);
 
         mockMvc.perform(post("/api/payments/transfer-own")
+                        .with(user(userA.getEmail()).roles("USER"))
+                        .with(csrf())
                         .param("userId", String.valueOf(userA.getUserId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
 
         // soldurile raman neschimbate
         assertEqualsBalance(1000.0, accountRepository.findById(accountA1.getAccountId()).orElseThrow().getBalance());
@@ -276,6 +288,8 @@ class PaymentFlowsIntegrationTest {
                 """.formatted(accountA1.getAccountId(), accountAUsd.getAccountId(), category.getCategoryId(), PASSWORD);
 
         mockMvc.perform(post("/api/payments/exchange")
+                        .with(user(userA.getEmail()).roles("USER"))
+                        .with(csrf())
                         .param("userId", String.valueOf(userA.getUserId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
@@ -289,7 +303,7 @@ class PaymentFlowsIntegrationTest {
     }
 
     @Test
-    void exchangeCurrency_destinationNotOwnedByUser_returnsBadRequest() throws Exception {
+    void exchangeCurrency_destinationNotOwnedByUser_returnsForbidden() throws Exception {
         Account otherUserUsdAccount = createAccount("RO49AAAA0000000000000005", "USD", 0.0, "USD Bogdan");
         grantAccess(userB, otherUserUsdAccount, "OWNER");
 
@@ -304,10 +318,12 @@ class PaymentFlowsIntegrationTest {
                 """.formatted(accountA1.getAccountId(), otherUserUsdAccount.getAccountId(), category.getCategoryId(), PASSWORD);
 
         mockMvc.perform(post("/api/payments/exchange")
+                        .with(user(userA.getEmail()).roles("USER"))
+                        .with(csrf())
                         .param("userId", String.valueOf(userA.getUserId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
 
         assertEqualsBalance(1000.0, accountRepository.findById(accountA1.getAccountId()).orElseThrow().getBalance());
     }

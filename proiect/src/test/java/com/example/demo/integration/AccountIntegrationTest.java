@@ -12,8 +12,10 @@ import com.example.demo.repositories.ScheduledPaymentRepository;
 import com.example.demo.repositories.TransactionRepository;
 import com.example.demo.repositories.UserLimitRepository;
 import com.example.demo.repositories.UserRepository;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -24,8 +26,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -65,9 +70,6 @@ public class AccountIntegrationTest {
     @Autowired
     private IndividualRepository individualRepository;
 
-    // Baza H2 e impartita intre TOATE clasele de integrare dintr-o rulare de teste,
-    // de-asta curatam toate tabelele care ar putea referinta accounts/users, nu doar
-    // pe cele folosite direct aici.
     @BeforeEach
     void cleanDatabase() {
         scheduledPaymentRepository.deleteAllInBatch();
@@ -84,7 +86,9 @@ public class AccountIntegrationTest {
 
     @Test
     void createAccount_thenListAndGetDetails_shouldReturnCorrectAccountData() throws Exception {
+
         User user = createActiveUser();
+
         String createAccountJson = """
                 {
                   "alias": "Cont principal",
@@ -94,48 +98,66 @@ public class AccountIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/accounts").param("userId", String.valueOf(user.getUserId()))
-               .contentType(MediaType.APPLICATION_JSON)
-               .content(createAccountJson))
-               .andExpect(status().isOk())
-               .andExpect(jsonPath("$.alias").value("Cont principal"))
-               .andExpect(jsonPath("$.currency").value("RON"))
-               .andExpect(jsonPath("$.balance").value(1000.0))
-               .andExpect(jsonPath("$.status").value("ACTIVE"))
-               .andReturn()
-               .getResponse()
-               .getContentAsString();
+        // CREATE
+        mockMvc.perform(
+                        post("/api/accounts")
+                                .with(user(user.getEmail()).roles("USER"))
+                                .with(csrf())
+                                .param("userId", String.valueOf(user.getUserId()))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(createAccountJson)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.alias").value("Cont principal"))
+                .andExpect(jsonPath("$.currency").value("RON"))
+                .andExpect(jsonPath("$.balance").value(1000.0))
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
 
         assertEquals(1, accountRepository.count());
         assertEquals(1, accountAccessRepository.count());
         assertEquals(1, transactionRepository.count());
 
         Account savedAccount = accountRepository.findAll().get(0);
+
         assertEquals("ACTIVE", savedAccount.getStatus());
         assertEquals(1000.0, savedAccount.getBalance());
 
-        mockMvc.perform(get("/api/accounts").param("userId", String.valueOf(user.getUserId())))
-               .andExpect(status().isOk())
-               .andExpect(jsonPath("$[0].accountId").value(savedAccount.getAccountId()))
-               .andExpect(jsonPath("$[0].alias").value("Cont principal"))
-               .andExpect(jsonPath("$[0].currency").value("RON"))
-               .andExpect(jsonPath("$[0].balance").value(1000.0))
-               .andExpect(jsonPath("$[0].accountRole").value("OWNER"));
+        // LIST
+        mockMvc.perform(
+                        get("/api/accounts")
+                                .with(user(user.getEmail()).roles("USER"))
+                                .with(csrf())
+                                .param("userId", String.valueOf(user.getUserId()))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].accountId").value(savedAccount.getAccountId()))
+                .andExpect(jsonPath("$[0].alias").value("Cont principal"))
+                .andExpect(jsonPath("$[0].currency").value("RON"))
+                .andExpect(jsonPath("$[0].balance").value(1000.0))
+                .andExpect(jsonPath("$[0].accountRole").value("OWNER"));
 
-        mockMvc.perform(get("/api/accounts/{accountId}", savedAccount.getAccountId()).param("userId", String.valueOf(user.getUserId())))
-               .andExpect(status().isOk())
-               .andExpect(jsonPath("$.accountId").value(savedAccount.getAccountId()))
-               .andExpect(jsonPath("$.alias").value("Cont principal"))
-               .andExpect(jsonPath("$.currency").value("RON"))
-               .andExpect(jsonPath("$.balance").value(1000.0))
-               .andExpect(jsonPath("$.status").value("ACTIVE"))
-               .andExpect(jsonPath("$.accountRole").value("OWNER"))
-               .andExpect(jsonPath("$.canInitiateTransactions").value(true));
+        // DETAILS
+        mockMvc.perform(
+                        get("/api/accounts/{accountId}", savedAccount.getAccountId())
+                                .with(user(user.getEmail()).roles("USER"))
+                                .with(csrf())
+                                .param("userId", String.valueOf(user.getUserId()))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accountId").value(savedAccount.getAccountId()))
+                .andExpect(jsonPath("$.alias").value("Cont principal"))
+                .andExpect(jsonPath("$.currency").value("RON"))
+                .andExpect(jsonPath("$.balance").value(1000.0))
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.accountRole").value("OWNER"))
+                .andExpect(jsonPath("$.canInitiateTransactions").value(true));
     }
 
     @Test
     void closeAccount_shouldRespectBalanceRuleAndHideClosedAccountFromDashboard() throws Exception {
+
         User user = createActiveUser();
+
         String createAccountJson = """
                 {
                   "alias": "Cont economii",
@@ -145,33 +167,64 @@ public class AccountIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/accounts").param("userId", String.valueOf(user.getUserId()))
-               .contentType(MediaType.APPLICATION_JSON)
-               .content(createAccountJson))
-               .andExpect(status().isOk());
+        // CREATE
+        mockMvc.perform(
+                        post("/api/accounts")
+                                .with(user(user.getEmail()).roles("USER"))
+                                .with(csrf())
+                                .param("userId", String.valueOf(user.getUserId()))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(createAccountJson)
+                )
+                .andExpect(status().isOk());
 
         Account savedAccount = accountRepository.findAll().get(0);
 
-        mockMvc.perform(put("/api/accounts/{accountId}/close", savedAccount.getAccountId()).param("userId", String.valueOf(user.getUserId())))
-               .andExpect(status().isBadRequest())
-               .andExpect(content().string("Account balance must be 0 to close the account!"));
+        // NU poate fi închis cât timp are bani
+        mockMvc.perform(
+                        put("/api/accounts/{accountId}/close", savedAccount.getAccountId())
+                                .with(user(user.getEmail()).roles("USER"))
+                                .with(csrf())
+                                .param("userId", String.valueOf(user.getUserId()))
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(
+                        "Account balance must be 0 to close the account!"
+                ));
 
         savedAccount.setBalance(0.0);
         accountRepository.save(savedAccount);
 
-        mockMvc.perform(put("/api/accounts/{accountId}/close", savedAccount.getAccountId()).param("userId", String.valueOf(user.getUserId())))
-               .andExpect(status().isOk());
+        // CLOSE
+        mockMvc.perform(
+                        put("/api/accounts/{accountId}/close", savedAccount.getAccountId())
+                                .with(user(user.getEmail()).roles("USER"))
+                                .with(csrf())
+                                .param("userId", String.valueOf(user.getUserId()))
+                )
+                .andExpect(status().isOk());
 
-        Account closedAccount = accountRepository.findById(savedAccount.getAccountId()).orElseThrow();
+        Account closedAccount =
+                accountRepository.findById(savedAccount.getAccountId())
+                        .orElseThrow();
+
         assertEquals("CLOSED", closedAccount.getStatus());
 
-        mockMvc.perform(get("/api/accounts").param("userId", String.valueOf(user.getUserId())))
-               .andExpect(status().isOk())
-               .andExpect(content().json("[]"));
+        // CLOSED account nu mai apare în dashboard
+        mockMvc.perform(
+                        get("/api/accounts")
+                                .with(user(user.getEmail()).roles("USER"))
+                                .with(csrf())
+                                .param("userId", String.valueOf(user.getUserId()))
+                )
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
     }
 
     private User createActiveUser() {
+
         User user = new User();
+
         user.setUsername("account_user");
         user.setEmail("account@test.com");
         user.setPasswordHash("password");
@@ -180,6 +233,7 @@ public class AccountIntegrationTest {
         user.setFailedLoginAttempts(0);
         user.setCreatedAt(new Date());
         user.setUpdatedAt(new Date());
+
         return userRepository.save(user);
     }
 }

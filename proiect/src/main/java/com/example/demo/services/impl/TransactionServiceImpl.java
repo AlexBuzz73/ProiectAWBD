@@ -388,7 +388,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         List<TransactionSummaryDTO> transactions = transactionPage.getContent()
                 .stream()
-                .map(transaction -> transactionMapper.toTransactionSummaryDTO(transaction))
+                .map(transaction -> transactionMapper.toTransactionSummaryDTO(transaction, userId))
                 .toList();
 
         return new PageResponseDTO<>(
@@ -414,7 +414,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         List<TransactionSummaryDTO> transactions = transactionPage.getContent()
                 .stream()
-                .map(transaction -> transactionMapper.toTransactionSummaryDTO(transaction))
+                .map(transaction -> transactionMapper.toTransactionSummaryDTO(transaction, userId))
                 .toList();
 
         return new PageResponseDTO<>(

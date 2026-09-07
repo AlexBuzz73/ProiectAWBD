@@ -1,6 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { getLoggedUser } from "../../utils/authStorage.js";
 import { createSingleAccount } from "../../api/accountsApi.js";
 import SingleAccountCreateForm from "../../components/accounts/SingleAccountCreateForm.jsx";
 
@@ -8,14 +7,13 @@ function SingleAccountCreatePage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-    const user = getLoggedUser();
 
     const handleCreateAccount = async (formData) => {
         setLoading(true);
         setError("");
 
         try {
-            await createSingleAccount(formData, user.userId);
+            await createSingleAccount(formData);
 
             navigate("/dashboard", {
                 state: {

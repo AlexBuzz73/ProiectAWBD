@@ -1,16 +1,56 @@
-# React + Vite
+# Frontend Internet Banking
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite; autentificare cu sesiune Spring Security si cookie CSRF. Backend-ul este in directorul parinte.
 
-Currently, two official plugins are available:
+## Rulare locala
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Necesita JDK 25 pentru proiectul Gradle si Node.js compatibil cu Vite instalat (verificat cu Node 24.15.0).
+Din root, cu JAVA_HOME indicand JDK 25:
 
-## React Compiler
+```powershell
+.\gradlew.bat bootRun --args="--spring.profiles.active=test"
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+H2 este in memorie si porneste gol. Pentru demonstrarea platilor si operatiilor ADMIN, opreste instanta anterioara si porneste cu datele optionale din data-test.sql:
 
-## Expanding the ESLint configuration
+```powershell
+.\gradlew.bat bootRun --args="--spring.profiles.active=test --spring.sql.init.mode=always"
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Aceasta varianta creeaza limite bancare si administratorul local `admin@test.com` / `TestAdmin123!` cu parola stocata BCrypt. Datele se pierd la oprire. Datele si credentialele sunt exclusiv pentru H2 local.
+
+Intr-un al doilea terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev -- --host localhost --strictPort
+```
+
+Deschide http://localhost:5173. API-ul implicit este http://localhost:8080/api.
+Optional, seteaza `VITE_API_BASE_URL` in `.env` dupa modelul `.env.example`.
+Foloseste `localhost` pentru ambele aplicatii, conform configuratiei CORS existente.
+
+## Verificari
+
+```powershell
+npm run lint
+npm test
+npm run build
+npm run test:e2e
+```
+
+Testele E2E necesita backend-ul cu datele optionale si Vite pornite pe porturile de mai sus. Folosesc Microsoft Edge headless instalat local (`channel: msedge`). Pe alte sisteme se poate instala Edge cu `npx playwright install msedge` sau configura un browser Playwright disponibil.
+
+E2E creeaza utilizatori si date in H2 prin API-uri reale. Register/login/logout sunt exercitate prin UI; celelalte mutatii folosesc modulele Vite API in contextul browserului, cu cookie-uri si CORS reale. Testele pot fi repetate datorita identificatorilor unici. Nu sunt destinate unei baze de productie.
+
+Clientul comun `src/api/apiClient.js` obtine CSRF prin fetch nativ, include credentialele si trimite X-XSRF-TOKEN pentru mutatii. Cererile bootstrap simultane sunt reunite; nu exista retry automat al unei plati respinse.
+
+Din root:
+
+```powershell
+.\gradlew.bat clean test
+.\gradlew.bat clean test jacocoTestReport build
+```
+
+Rezultatele si problemele ramase sunt in [PROJECT_PROGRESS.md](../PROJECT_PROGRESS.md). Autorizarea intre utilizatori este verificata prin doua sesiuni reale. Modulele API nu mai accepta userId; backend-ul deriva identitatea din sesiune, cu rute /users/me/... si /user/me/limits. Tratarea generala API 404 si alte cerinte din checklist raman deschise; aplicatia nu este declarata pregatita pentru productie.

@@ -22,6 +22,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Date;
+import org.springframework.web.context.WebApplicationContext;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
@@ -32,12 +36,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 @ActiveProfiles("test")
 class CategoryControllerIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+    @Autowired private WebApplicationContext context;
 
     @Autowired
     private UserRepository userRepository;
@@ -81,10 +86,10 @@ class CategoryControllerIntegrationTest {
         cardRepository.deleteAllInBatch();
         accountAccessRepository.deleteAllInBatch();
         userLimitRepository.deleteAllInBatch();
-        categoryRepository.deleteAll();
+        categoryRepository.deleteAllInBatch();
         exchangeRateRepository.deleteAllInBatch();
         accountRepository.deleteAllInBatch();
-        userRepository.deleteAll();
+        userRepository.deleteAllInBatch();
         individualRepository.deleteAllInBatch();
 
         activeUser = new User();
@@ -114,6 +119,8 @@ class CategoryControllerIntegrationTest {
         userCategory.setCreatedAt(new Date());
         userCategory.setUpdatedAt(new Date());
         userCategory = categoryRepository.save(userCategory);
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())
+                .defaultRequest(get("/").with(user(activeUser.getEmail()).roles("USER")).with(csrf())).build();
     }
 
     @Test
@@ -169,9 +176,9 @@ class CategoryControllerIntegrationTest {
     }
 
     @Test
-    void deleteCategory_shouldReturnBadRequest_whenCategoryIsSystemCategory() throws Exception {
+    void deleteCategory_shouldReturnForbidden_whenCategoryIsSystemCategory() throws Exception {
         mockMvc.perform(delete("/api/users/" + activeUser.getUserId() + "/categories/" + systemCategory.getCategoryId()))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
     }
 
     @Test

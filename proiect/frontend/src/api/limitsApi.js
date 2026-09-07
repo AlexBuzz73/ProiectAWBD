@@ -1,5 +1,5 @@
-const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/user`;
-
+const BASE_URL = `${API_BASE_URL}/user`;
+import { apiFetch, API_BASE_URL } from './apiClient.js';
 async function getErrorMessage(response, fallbackMessage) {
     const contentType = response.headers.get("content-type");
 
@@ -14,8 +14,8 @@ async function getErrorMessage(response, fallbackMessage) {
     return message || fallbackMessage;
 }
 
-export async function getUserLimits(userId) {
-    const response = await fetch(`${BASE_URL}/${userId}/limits`, { credentials: 'include' });
+export async function getUserLimits() {
+    const response = await apiFetch(`${BASE_URL}/me/limits`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load user limits.");
@@ -25,8 +25,8 @@ export async function getUserLimits(userId) {
     return response.json();
 }
 
-export async function updateUserLimits(userId, limitsData) {
-    const response = await fetch(`${BASE_URL}/${userId}/limits`, {
+export async function updateUserLimits(limitsData) {
+    const response = await apiFetch(`${BASE_URL}/me/limits`, {
         method: "PUT",
         credentials: 'include',
         headers: {

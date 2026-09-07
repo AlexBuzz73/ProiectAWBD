@@ -25,6 +25,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Calendar;
 import java.util.Date;
+import org.springframework.web.context.WebApplicationContext;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -33,12 +37,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 @ActiveProfiles("test")
 class CardControllerIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+    @Autowired private WebApplicationContext context;
 
     @Autowired
     private UserRepository userRepository;
@@ -83,13 +88,13 @@ class CardControllerIntegrationTest {
     void setUp() {
         scheduledPaymentRepository.deleteAllInBatch();
         transactionRepository.deleteAllInBatch();
-        cardRepository.deleteAll();
-        accountAccessRepository.deleteAll();
+        cardRepository.deleteAllInBatch();
+        accountAccessRepository.deleteAllInBatch();
         userLimitRepository.deleteAllInBatch();
         categoryRepository.deleteAllInBatch();
         exchangeRateRepository.deleteAllInBatch();
-        accountRepository.deleteAll();
-        userRepository.deleteAll();
+        accountRepository.deleteAllInBatch();
+        userRepository.deleteAllInBatch();
         individualRepository.deleteAllInBatch();
 
         activeUser = new User();
@@ -143,6 +148,13 @@ class CardControllerIntegrationTest {
         ownerAccess.setUpdatedAt(new Date());
         accountAccessRepository.save(ownerAccess);
 
+        AccountAccess closedOwnerAccess = new AccountAccess();
+        closedOwnerAccess.setUser(activeUser);
+        closedOwnerAccess.setAccount(closedAccount);
+        closedOwnerAccess.setAccessRole("OWNER");
+        closedOwnerAccess.setStatus("ACTIVE");
+        accountAccessRepository.save(closedOwnerAccess);
+
         AccountAccess viewerAccess = new AccountAccess();
         viewerAccess.setUser(viewerUser);
         viewerAccess.setAccount(activeAccount);
@@ -165,6 +177,8 @@ class CardControllerIntegrationTest {
         activeCard.setCreatedAt(new Date());
         activeCard.setUpdatedAt(new Date());
         activeCard = cardRepository.save(activeCard);
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())
+                .defaultRequest(get("/").with(user(activeUser.getEmail()).roles("USER")).with(csrf())).build();
     }
 
     @Test
@@ -207,11 +221,11 @@ class CardControllerIntegrationTest {
     }
 
     @Test
-    void createCard_shouldReturnBadRequest_whenUserIsViewer() throws Exception {
+    void createCard_shouldReturnForbidden_whenUserIsViewer() throws Exception {
         cardRepository.delete(activeCard);
 
-        mockMvc.perform(post("/api/users/" + viewerUser.getUserId() + "/accounts/" + activeAccount.getAccountId() + "/card"))
-                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/users/" + viewerUser.getUserId() + "/accounts/" + activeAccount.getAccountId() + "/card").with(user(viewerUser.getEmail()).roles("USER")))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -246,9 +260,9 @@ class CardControllerIntegrationTest {
     }
 
     @Test
-    void updateCard_shouldReturnBadRequest_whenViewerTriesToBlockCard() throws Exception {
-        mockMvc.perform(patch("/api/users/" + viewerUser.getUserId() + "/accounts/" + activeAccount.getAccountId() + "/card/" + activeCard.getCardId() + "/status/BLOCKED"))
-                .andExpect(status().isBadRequest());
+    void updateCard_shouldReturnForbidden_whenViewerTriesToBlockCard() throws Exception {
+        mockMvc.perform(patch("/api/users/" + viewerUser.getUserId() + "/accounts/" + activeAccount.getAccountId() + "/card/" + activeCard.getCardId() + "/status/BLOCKED").with(user(viewerUser.getEmail()).roles("USER")))
+                .andExpect(status().isForbidden());
     }
 
     @Test

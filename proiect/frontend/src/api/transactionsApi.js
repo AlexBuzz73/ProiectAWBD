@@ -1,5 +1,5 @@
-const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/transactions`;
-
+const BASE_URL = `${API_BASE_URL}/transactions`;
+import { apiFetch, API_BASE_URL } from './apiClient.js';
 async function getErrorMessage(response, fallbackMessage) {
     const contentType = response.headers.get("content-type");
 
@@ -14,9 +14,9 @@ async function getErrorMessage(response, fallbackMessage) {
     return message || fallbackMessage;
 }
 
-export async function getUserTransactionsPaged(userId, page, size, sortBy, direction) {
-    const params = new URLSearchParams({userId, page, size, sortBy, direction,});
-    const response = await fetch(`${BASE_URL}/user?${params.toString()}`, { credentials: 'include' });
+export async function getUserTransactionsPaged(page, size, sortBy, direction) {
+    const params = new URLSearchParams({page, size, sortBy, direction,});
+    const response = await apiFetch(`${BASE_URL}/user?${params.toString()}`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load transactions.");
@@ -26,9 +26,9 @@ export async function getUserTransactionsPaged(userId, page, size, sortBy, direc
     return response.json();
 }
 
-export async function getAccountTransactionsPaged(accountId, userId, page, size, sortBy, direction) {
-    const params = new URLSearchParams({userId, page, size, sortBy, direction,});
-    const response = await fetch(`${BASE_URL}/account/${accountId}?${params.toString()}`, { credentials: 'include' });
+export async function getAccountTransactionsPaged(accountId, page, size, sortBy, direction) {
+    const params = new URLSearchParams({page, size, sortBy, direction,});
+    const response = await apiFetch(`${BASE_URL}/account/${accountId}?${params.toString()}`, { credentials: 'include' });
 
     if (!response.ok) {
         const message = await getErrorMessage(response, "Could not load account transactions.");

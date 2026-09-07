@@ -18,9 +18,6 @@ function UserLimitsPage() {
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
 
-    useEffect(() => {
-        loadUserLimits();
-    }, []);
 
     const normalizeLimits = (response) => {
         return {
@@ -30,21 +27,24 @@ function UserLimitsPage() {
         };
     };
 
-    const loadUserLimits = async () => {
-        setLoading(true);
-        setError("");
-        setSuccessMessage("");
+    useEffect(() => {
+        const loadUserLimits = async () => {
+            setLoading(true);
+            setError("");
+            setSuccessMessage("");
 
-        try {
-            const response = await getUserLimits(user.userId);
+            try {
+                const response = await getUserLimits();
 
-            setLimits(normalizeLimits(response));
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+                setLimits(normalizeLimits(response));
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadUserLimits();
+    }, [user?.userId]);
 
     const handleSubmit = async (limitsData) => {
         setSaving(true);
@@ -52,7 +52,7 @@ function UserLimitsPage() {
         setSuccessMessage("");
 
         try {
-            const response = await updateUserLimits(user.userId, limitsData);
+            const response = await updateUserLimits(limitsData);
 
             setLimits(normalizeLimits(response));
             setSuccessMessage("Transaction limits saved successfully.");
@@ -87,6 +87,7 @@ function UserLimitsPage() {
 
             {!loading && (
                 <UserLimitsForm
+                    key={JSON.stringify(limits)}
                     initialValues={limits}
                     onSubmit={handleSubmit}
                     submitting={saving}

@@ -33,6 +33,7 @@ function UserDashboardPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const user = getLoggedUser();
+    const [logoutError, setLogoutError] = useState("");
 
     const [accountsPage, setAccountsPage] = useState(EMPTY_ACCOUNTS_PAGE);
     const [accountSummary, setAccountSummary] = useState([]);
@@ -40,7 +41,7 @@ function UserDashboardPage() {
     const [loadingSummary, setLoadingSummary] = useState(false);
     const [accountsError, setAccountsError] = useState("");
     const [summaryError, setSummaryError] = useState("");
-    const [message, setMessage] = useState("");
+    const message = location.state?.message || "";
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(2);
     const [sortBy, setSortBy] = useState("alias");
@@ -54,11 +55,6 @@ function UserDashboardPage() {
     const [transactionsSortBy, setTransactionsSortBy] = useState("createdAt");
     const [transactionsDirection, setTransactionsDirection] = useState("desc");
 
-    useEffect(() => {
-        if (location.state?.message) {
-            setMessage(location.state.message);
-        }
-    }, [location]);
 
     useEffect(() => {
         if (!user?.userId) {
@@ -70,7 +66,7 @@ function UserDashboardPage() {
             setSummaryError("");
 
             try {
-                const response = await getAccountCurrencySummary(user.userId);
+                const response = await getAccountCurrencySummary();
                 setAccountSummary(response);
             } catch (err) {
                 setSummaryError(err.message);
@@ -92,7 +88,7 @@ function UserDashboardPage() {
             setAccountsError("");
 
             try {
-                const response = await getActiveAccountsPaged(user.userId, page, pageSize, sortBy, direction);
+                const response = await getActiveAccountsPaged(page, pageSize, sortBy, direction);
 
                 setAccountsPage(response);
             } catch (err) {
@@ -115,7 +111,7 @@ function UserDashboardPage() {
             setTransactionsError("");
 
             try {
-                const response = await getUserTransactionsPaged(user.userId, transactionsPageNumber, transactionsPageSize, transactionsSortBy, transactionsDirection);
+                const response = await getUserTransactionsPaged(transactionsPageNumber, transactionsPageSize, transactionsSortBy, transactionsDirection);
 
                 setTransactionsPage(response);
             } catch (err) {
@@ -129,9 +125,13 @@ function UserDashboardPage() {
     }, [user?.userId, transactionsPageNumber, transactionsPageSize, transactionsSortBy, transactionsDirection]);
 
     const handleLogout = async () => {
-        await logoutUser();
-        removeLoggedUser();
-        navigate("/login");
+        try {
+            await logoutUser();
+            removeLoggedUser();
+            navigate("/login");
+        } catch (error) {
+            setLogoutError(error.message);
+        }
     };
 
     const handleSortByChange = (event) => {
@@ -342,6 +342,7 @@ function UserDashboardPage() {
                 </li>
             </ul>
 
+            {logoutError && <p role="alert">{logoutError}</p>}
             <button onClick={handleLogout}>
                 Logout
             </button>

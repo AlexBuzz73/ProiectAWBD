@@ -38,6 +38,8 @@ out/
 
 # Vite cache
 frontend/.vite/
+test-results/
+playwright-report/
 
 logs/
    *.log

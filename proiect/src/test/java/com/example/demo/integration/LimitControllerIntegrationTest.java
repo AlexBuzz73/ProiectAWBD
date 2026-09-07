@@ -23,6 +23,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import org.springframework.web.context.WebApplicationContext;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -30,12 +34,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 @ActiveProfiles("test")
 class LimitControllerIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+    @Autowired private WebApplicationContext context;
 
     @Autowired
     private BankLimitRepository bankLimitRepository;
@@ -79,12 +84,12 @@ class LimitControllerIntegrationTest {
         transactionRepository.deleteAllInBatch();
         cardRepository.deleteAllInBatch();
         accountAccessRepository.deleteAllInBatch();
-        userLimitRepository.deleteAll();
+        userLimitRepository.deleteAllInBatch();
         categoryRepository.deleteAllInBatch();
         exchangeRateRepository.deleteAllInBatch();
         accountRepository.deleteAllInBatch();
-        userRepository.deleteAll();
-        bankLimitRepository.deleteAll();
+        userRepository.deleteAllInBatch();
+        bankLimitRepository.deleteAllInBatch();
         individualRepository.deleteAllInBatch();
 
         BankLimit bankLimit = new BankLimit();
@@ -106,11 +111,13 @@ class LimitControllerIntegrationTest {
         activeUser.setCreatedAt(new Date());
         activeUser.setUpdatedAt(new Date());
         activeUser = userRepository.save(activeUser);
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())
+                .defaultRequest(get("/").with(user(activeUser.getEmail()).roles("USER")).with(csrf())).build();
     }
 
     @Test
     void getBankLimits_shouldReturnActiveBankLimits() throws Exception {
-        mockMvc.perform(get("/api/admin/bank-limits"))
+        mockMvc.perform(get("/api/admin/bank-limits").with(user("admin@test.com").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.maxAmountPerTransactionRon", is(5000.0)))
                 .andExpect(jsonPath("$.maxDailyAmountRon", is(20000.0)))
@@ -129,7 +136,7 @@ class LimitControllerIntegrationTest {
                 """;
 
         mockMvc.perform(
-                        put("/api/admin/bank-limits")
+                        put("/api/admin/bank-limits").with(user("admin@test.com").roles("ADMIN"))
                                 .contentType("application/json")
                                 .content(jsonBody)
                 )

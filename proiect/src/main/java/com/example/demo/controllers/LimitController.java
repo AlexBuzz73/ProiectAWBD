@@ -1,5 +1,7 @@
 package com.example.demo.controllers;
 
+import com.example.demo.services.CurrentUserService;
+
 import com.example.demo.dto.BankLimitRequestDTO;
 import com.example.demo.dto.BankLimitResponseDTO;
 import com.example.demo.dto.UserLimitRequestDTO;
@@ -12,11 +14,13 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api")
 public class LimitController {
+    private final CurrentUserService currentUserService;
     private final LimitService limitService;
 
 
-    public LimitController(LimitService limitService) {
+    public LimitController(LimitService limitService, CurrentUserService currentUserService) {
         this.limitService = limitService;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping("/admin/bank-limits")
@@ -30,18 +34,21 @@ public class LimitController {
         return limitService.updateBankLimits(bankLimitRequestDTO);
     }
 
-    @GetMapping("/user/{userId}/limits")
-    public UserLimitResponseDTO getUserLimits(@PathVariable Integer userId) {
+    @GetMapping({"/user/{userId}/limits", "/user/me/limits"})
+    public UserLimitResponseDTO getUserLimits(@PathVariable(name = "userId", required = false) Integer requestedUserId) {
+        Integer userId = currentUserService.requireCurrentUserId(requestedUserId);
         return limitService.getUserLimits(userId);
     }
 
-    @PutMapping("/user/{userId}/limits")
-    public UserLimitResponseDTO updateUserLimits(@Valid @RequestBody UserLimitRequestDTO userLimitRequestDTO, @PathVariable Integer userId) {
+    @PutMapping({"/user/{userId}/limits", "/user/me/limits"})
+    public UserLimitResponseDTO updateUserLimits(@Valid @RequestBody UserLimitRequestDTO userLimitRequestDTO, @PathVariable(name = "userId", required = false) Integer requestedUserId) {
+        Integer userId = currentUserService.requireCurrentUserId(requestedUserId);
         return limitService.updateUserLimits(userId, userLimitRequestDTO);
     }
     
-    @DeleteMapping("/user/{userId}/limits")
-    public void deleteUserLimits(@PathVariable Integer userId) {
+    @DeleteMapping({"/user/{userId}/limits", "/user/me/limits"})
+    public void deleteUserLimits(@PathVariable(name = "userId", required = false) Integer requestedUserId) {
+        Integer userId = currentUserService.requireCurrentUserId(requestedUserId);
         limitService.deleteUserLimits(userId);
     }
 

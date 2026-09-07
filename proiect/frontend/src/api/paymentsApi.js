@@ -1,5 +1,5 @@
-const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/payments`;
-
+const BASE_URL = `${API_BASE_URL}/payments`;
+import { apiFetch, API_BASE_URL } from './apiClient.js';
 async function getErrorMessage(response, fallbackMessage) {
     const contentType = response.headers.get("content-type");
 
@@ -14,8 +14,8 @@ async function getErrorMessage(response, fallbackMessage) {
     return message || fallbackMessage;
 }
 
-export async function initiatePayment(userId, paymentData) {
-    const response = await fetch(`${BASE_URL}/initiate?userId=${userId}`, {
+export async function initiatePayment(paymentData) {
+    const response = await apiFetch(`${BASE_URL}/initiate`, {
         method: "POST",
         credentials: 'include',
         headers: {
@@ -32,8 +32,8 @@ export async function initiatePayment(userId, paymentData) {
     return response.json();
 }
 
-export async function transferOwnAccounts(userId, transferData) {
-    const response = await fetch(`${BASE_URL}/transfer-own?userId=${userId}`, {
+export async function transferOwnAccounts(transferData) {
+    const response = await apiFetch(`${BASE_URL}/transfer-own`, {
         method: "POST",
         credentials: 'include',
         headers: {
@@ -50,8 +50,8 @@ export async function transferOwnAccounts(userId, transferData) {
     return response.json();
 }
 
-export async function exchangeCurrency(userId, exchangeData) {
-    const response = await fetch(`${BASE_URL}/exchange?userId=${userId}`, {
+export async function exchangeCurrency(exchangeData) {
+    const response = await apiFetch(`${BASE_URL}/exchange`, {
         method: "POST",
         credentials: 'include',
         headers: {

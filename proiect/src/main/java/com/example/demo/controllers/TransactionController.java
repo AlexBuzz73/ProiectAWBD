@@ -1,5 +1,9 @@
 package com.example.demo.controllers;
 
+import com.example.demo.services.CurrentUserService;
+import com.example.demo.services.ResourceAuthorizationService;
+import static com.example.demo.services.ResourceAuthorizationService.AccountPermission.*;
+
 import com.example.demo.dto.PageResponseDTO;
 import com.example.demo.dto.TransactionSummaryDTO;
 import com.example.demo.services.TransactionService;
@@ -11,17 +15,20 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/transactions")
 @RequiredArgsConstructor
 public class TransactionController {
+    private final CurrentUserService currentUserService;
+    private final ResourceAuthorizationService authorization;
 
     private final TransactionService transactionService;
 
     @GetMapping("/user")
     public ResponseEntity<PageResponseDTO<TransactionSummaryDTO>> getTransactionsForUserPaged(
-            @RequestParam int userId,
+            @RequestParam(name = "userId", required = false) Integer requestedUserId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "3") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String direction
     ) {
+        Integer userId = currentUserService.requireCurrentUserId(requestedUserId);
         PageResponseDTO<TransactionSummaryDTO> response = transactionService.getTransactionsForUserPaged(userId, page, size, sortBy, direction);
         return ResponseEntity.ok(response);
     }
@@ -29,12 +36,14 @@ public class TransactionController {
     @GetMapping("/account/{accountId:\\d+}")
     public ResponseEntity<PageResponseDTO<TransactionSummaryDTO>> getTransactionsForAccountPaged(
             @PathVariable Long accountId,
-            @RequestParam int userId,
+            @RequestParam(name = "userId", required = false) Integer requestedUserId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "3") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String direction
     ) {
+        Integer userId = currentUserService.requireCurrentUserId(requestedUserId);
+        authorization.requireAccount(userId, accountId, READ);
         PageResponseDTO<TransactionSummaryDTO> response = transactionService.getTransactionsForAccountPaged(accountId, userId, page, size, sortBy, direction);
         return ResponseEntity.ok(response);
     }

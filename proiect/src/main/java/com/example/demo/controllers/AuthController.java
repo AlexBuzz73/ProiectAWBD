@@ -6,6 +6,7 @@ import com.example.demo.dto.LoginResponseDTO;
 import com.example.demo.dto.RegistrationRequestDTO;
 import com.example.demo.services.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +32,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final AuthenticationManager authenticationManager;
+    private final SessionAuthenticationStrategy loginSessionStrategy;
 
     @PostMapping("/validate-individual")
     public ResponseEntity<Void> validateIndividual(@Valid @RequestBody IndividualRegistrationDTO dto) {
@@ -46,7 +49,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(
             @Valid @RequestBody LoginRequestDTO dto,
-            HttpServletRequest request) {
+            HttpServletRequest request, HttpServletResponse servletResponse) {
 
 
         LoginResponseDTO response = authService.login(dto);
@@ -57,9 +60,12 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword())
             );
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            loginSessionStrategy.onAuthentication(authentication, request, servletResponse);
+            var context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authentication);
+            SecurityContextHolder.setContext(context);
             new HttpSessionSecurityContextRepository()
-                    .saveContext(SecurityContextHolder.getContext(), request, null);
+                    .saveContext(context, request, servletResponse);
 
             log.info("Spring Security: autentificare reusita pentru email={}", dto.getEmail());
         } catch (LockedException e) {

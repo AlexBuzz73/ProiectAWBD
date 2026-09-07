@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 function tomorrowDateString() {
     const date = new Date();
@@ -8,7 +8,7 @@ function tomorrowDateString() {
 
 function PaymentForm({ accounts, categories, onSubmit, submitting }) {
     const [formData, setFormData] = useState({
-        sourceAccountId: "",
+        sourceAccountId: accounts.find((a) => a.accountRole !== "VIEWER")?.accountId ?? "",
         destinationIban: "",
         amount: "",
         categoryId: "",
@@ -26,12 +26,6 @@ function PaymentForm({ accounts, categories, onSubmit, submitting }) {
         (a) => String(a.accountId) === String(formData.sourceAccountId)
     );
 
-    useEffect(() => {
-        if (eligibleAccounts.length > 0 && !formData.sourceAccountId) {
-            setFormData((prev) => ({ ...prev, sourceAccountId: eligibleAccounts[0].accountId }));
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [accounts]);
 
     const handleChange = (event) => {
         const { name, value } = event.target;

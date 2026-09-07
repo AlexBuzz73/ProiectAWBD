@@ -1,21 +1,15 @@
 import LoginForm from "../components/auth/LoginForm.jsx";
 import { loginUser } from "../api/authApi.js";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { saveLoggedUser } from "../utils/authStorage.js";
 
 function LoginPage() {
-    const [message, setMessage] = useState("");
+    const location = useLocation();
+    const [message, setMessage] = useState(location.state?.message || "");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-    const location = useLocation();
-
-    useEffect(() => {
-        if (location.state?.message) {
-            setMessage(location.state.message);
-        }
-    }, [location]);
 
     const handleLoginSubmit = async (formData) => {
         setLoading(true);

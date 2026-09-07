@@ -25,28 +25,28 @@ function AccountCardSection({ userId, account }) {
     const [message, setMessage] = useState("");
     const isOwner = account?.accountRole === "OWNER";
 
+
     useEffect(() => {
+        const loadCard = async () => {
+            if (!userId || !account?.accountId) {
+                return;
+            }
+
+            setLoading(true);
+            setError("");
+            setMessage("");
+
+            try {
+                const response = await getCardForAccount(account.accountId);
+                setCard(response);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
         loadCard();
     }, [userId, account?.accountId]);
-
-    const loadCard = async () => {
-        if (!userId || !account?.accountId) {
-            return;
-        }
-
-        setLoading(true);
-        setError("");
-        setMessage("");
-
-        try {
-            const response = await getCardForAccount(userId, account.accountId);
-            setCard(response);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleCreateCard = async () => {
         const confirmed = window.confirm("Are you sure you want to order a card for this account?");
@@ -60,7 +60,7 @@ function AccountCardSection({ userId, account }) {
         setMessage("");
 
         try {
-            const response = await createCard(userId, account.accountId);
+            const response = await createCard(account.accountId);
 
             setCard(response);
             setMessage("Card created successfully.");
@@ -77,7 +77,7 @@ function AccountCardSection({ userId, account }) {
         setMessage("");
 
         try {
-            await updateCardStatus(userId, account.accountId, card.cardId, newStatus);
+            await updateCardStatus(account.accountId, card.cardId, newStatus);
 
             setCard({
                 ...card,

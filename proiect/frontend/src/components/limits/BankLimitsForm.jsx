@@ -1,21 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 function BankLimitsForm({ initialValues, onSubmit, submitting }) {
     const [formData, setFormData] = useState({
-        maxAmountPerTransactionRon: "",
-        maxDailyAmountRon: "",
-        maxDailyTransactionsCount: "",
+        maxAmountPerTransactionRon: initialValues?.maxAmountPerTransactionRon ?? "",
+        maxDailyAmountRon: initialValues?.maxDailyAmountRon ?? "",
+        maxDailyTransactionsCount: initialValues?.maxDailyTransactionsCount ?? "",
     });
 
     const [errors, setErrors] = useState({});
 
-    useEffect(() => {
-        setFormData({
-            maxAmountPerTransactionRon: initialValues?.maxAmountPerTransactionRon ?? "",
-            maxDailyAmountRon: initialValues?.maxDailyAmountRon ?? "",
-            maxDailyTransactionsCount: initialValues?.maxDailyTransactionsCount ?? "",
-        });
-    }, [initialValues]);
 
     const handleChange = (event) => {
         const { name, value } = event.target;
