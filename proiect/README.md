@@ -440,3 +440,29 @@ Scenariile E2E acoperite:
 8. Configurație centralizată cu Spring Cloud Config Server.
 9. Containerizare completă cu Docker și orchestrare cu Docker Compose.
 
+
+
+---
+
+## 9. Microservicii, Service Discovery și Load Balancing
+
+Aplicația include o suită completă de microservicii distribuite, configurabile pentru scalabilitate orizontală prin **Eureka Server** și **Spring Cloud LoadBalancer**:
+
+1. **`eureka-server` (Port 8761):**
+   - Registry centralizat pentru descoperirea automată a instanțelor.
+2. **`user-service` (Replicat: Port 8081 & 8181):**
+   - Gestionare utilizatori, emitere JWT RS256, JWKS public, chei partajate.
+3. **`account-service` (Replicat: Port 8082 & 8182):**
+   - OAuth2 Resource Server, gestiune conturi, carduri, limite, client Feign către user-service cu RoundRobinLoadBalancer.
+4. **`transaction-service` (Replicat: Port 8083 & 8183):**
+   - OAuth2 Resource Server, transferuri, plăți, client Feign către account-service cu RoundRobinLoadBalancer.
+
+### Rulare și Verificare Multi-Instanță
+Pentru a porni și verifica suita completă de 7 procese (Eureka + 6 replici) demonstrând distribuția traficului Round-Robin, failover automat și fluxul de afaceri end-to-end:
+```powershell
+python scratch/verify_phase5_load_balancing.py
+```
+Toate cele 361 de teste Java pot fi rulate prin:
+```powershell
+python scratch/run_full_regression.py
+```

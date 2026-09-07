@@ -14,4 +14,7 @@ public interface UserFeignClient {
 
     @GetMapping("/api/users/by-email")
     UserLookupDTO getUserByEmail(@RequestParam("email") String email);
+
+    @GetMapping("/api/internal/users/instance-info")
+    java.util.Map<String, Object> getInstanceInfo();
 }

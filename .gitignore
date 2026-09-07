@@ -14,3 +14,9 @@ Thumbs.db
 /account-service
 /transaction-service
 /eureka-server
+# Cryptographic private keys and replication storage
+**/keys/private*.pem
+**/keys/*.key
+*.pkcs8
+keys/
+data/

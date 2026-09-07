@@ -35,4 +35,7 @@ public interface AccountFeignClient {
 
     @GetMapping("/api/internal/accounts/user/{userId}")
     List<AccountInternalSummaryDTO> getUserAccounts(@PathVariable("userId") Integer userId);
+
+    @GetMapping("/api/internal/accounts/instance-info")
+    java.util.Map<String, Object> getInstanceInfo();
 }

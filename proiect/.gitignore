@@ -43,3 +43,10 @@ playwright-report/
 
 logs/
    *.log
+
+# Cryptographic private keys and replication storage
+**/keys/private*.pem
+**/keys/*.key
+*.pkcs8
+keys/
+data/

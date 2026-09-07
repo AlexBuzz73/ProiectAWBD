@@ -17,6 +17,7 @@ public class InternalAccountController {
 
     private final AccountService accountService;
     private final LimitService limitService;
+    private final com.example.accountservice.client.UserClient userClient;
 
     @GetMapping("/{accountId}")
     public ResponseEntity<AccountInternalSummaryDTO> getAccountSummary(@PathVariable Long accountId) {
@@ -65,5 +66,33 @@ public class InternalAccountController {
     public ResponseEntity<UserLimitResponseDTO> getUserLimits(@PathVariable Integer userId) {
         UserLimitResponseDTO limits = limitService.getUserLimits(userId);
         return ResponseEntity.ok(limits);
+    }
+
+    @GetMapping("/feign-test/user/{userId}")
+    public ResponseEntity<java.util.Map<String, Object>> testFeignToUserService(@PathVariable Integer userId) {
+        var user = userClient.findUserById(userId);
+        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        map.put("user", user.orElse(null));
+        map.put("callerService", "account-service");
+        return ResponseEntity.ok(map);
+    }
+
+    @org.springframework.beans.factory.annotation.Value("${server.port:8082}")
+    private int serverPort;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.accountservice.client.UserFeignClient userFeignClient;
+
+    @GetMapping("/instance-info")
+    public ResponseEntity<java.util.Map<String, Object>> getInstanceInfo() {
+        return ResponseEntity.ok(java.util.Map.of("service", "account-service", "port", serverPort));
+    }
+
+    @GetMapping("/feign-test/lb")
+    public ResponseEntity<java.util.Map<String, Object>> testFeignLb() {
+        if (userFeignClient != null) {
+            return ResponseEntity.ok(userFeignClient.getInstanceInfo());
+        }
+        return ResponseEntity.ok(java.util.Map.of("status", "mock", "service", "account-service"));
     }
 }
