@@ -507,4 +507,27 @@ class UserAuthIntegrationTest {
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(jsonPath("$.error").value("Metoda HTTP nu este suportata"));
     }
+
+    @Test
+    @DisplayName("21. Public JWKS endpoint exposes RSA public key without private components")
+    void test21_jwksEndpointReturnsPublicKeysOnly() throws Exception {
+        MvcResult result = mockMvc.perform(get("/.well-known/jwks.json"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.keys").isArray())
+                .andExpect(jsonPath("$.keys[0].kty").value("RSA"))
+                .andExpect(jsonPath("$.keys[0].e").value("AQAB"))
+                .andExpect(jsonPath("$.keys[0].n").isNotEmpty())
+                .andExpect(jsonPath("$.keys[0].kid").isNotEmpty())
+                .andReturn();
+
+        JsonNode root = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode key = root.get("keys").get(0);
+        assertThat(key.has("d")).isFalse();
+        assertThat(key.has("p")).isFalse();
+        assertThat(key.has("q")).isFalse();
+        assertThat(key.has("dp")).isFalse();
+        assertThat(key.has("dq")).isFalse();
+        assertThat(key.has("qi")).isFalse();
+    }
 }

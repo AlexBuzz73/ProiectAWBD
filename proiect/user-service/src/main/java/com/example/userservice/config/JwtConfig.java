@@ -33,6 +33,11 @@ public class JwtConfig {
         log.info("Initialized in-memory RSA keypair for RS256 JWT signing");
     }
 
+    @Bean
+    public RSAKey rsaJwk() {
+        return this.rsaJwk;
+    }
+
     private static RSAKey generateRsaJwk() {
         try {
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
