@@ -17,6 +17,7 @@ import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.RememberMeServices;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,6 +34,7 @@ public class AuthController {
     private final AuthService authService;
     private final AuthenticationManager authenticationManager;
     private final SessionAuthenticationStrategy loginSessionStrategy;
+    private final RememberMeServices rememberMeServices;
 
     @PostMapping("/validate-individual")
     public ResponseEntity<Void> validateIndividual(@Valid @RequestBody IndividualRegistrationDTO dto) {
@@ -51,9 +53,7 @@ public class AuthController {
             @Valid @RequestBody LoginRequestDTO dto,
             HttpServletRequest request, HttpServletResponse servletResponse) {
 
-
         LoginResponseDTO response = authService.login(dto);
-
 
         try {
             Authentication authentication = authenticationManager.authenticate(
@@ -67,11 +67,15 @@ public class AuthController {
             new HttpSessionSecurityContextRepository()
                     .saveContext(context, request, servletResponse);
 
+            if (Boolean.TRUE.equals(dto.getRememberMe())) {
+                request.setAttribute("rememberMe", Boolean.TRUE);
+                rememberMeServices.loginSuccess(request, servletResponse, authentication);
+            }
+
             log.info("Spring Security: autentificare reusita pentru email={}", dto.getEmail());
         } catch (LockedException e) {
             throw new IllegalArgumentException("Contul este blocat. Contactati banca.");
         } catch (BadCredentialsException e) {
-
             log.error("Spring Security: autentificare esuata desi AuthService a acceptat - email={}", dto.getEmail());
             throw new IllegalArgumentException("Eroare de autentificare. Incercati din nou.");
         }

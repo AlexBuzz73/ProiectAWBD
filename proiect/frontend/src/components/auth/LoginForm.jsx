@@ -4,14 +4,15 @@ function LoginForm({ onSubmit }) {
     const [formData, setFormData] = useState({
         email: "",
         password: "",
+        rememberMe: false,
     });
 
     const handleChange = (event) => {
-        const { name, value } = event.target;
+        const { name, value, type, checked } = event.target;
 
         setFormData({
             ...formData,
-            [name]: value,
+            [name]: type === "checkbox" ? checked : value,
         });
     };
 
@@ -44,6 +45,19 @@ function LoginForm({ onSubmit }) {
                     onChange={handleChange}
                     required
                 />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", margin: "0.75rem 0" }}>
+                <input
+                    type="checkbox"
+                    id="rememberMe"
+                    name="rememberMe"
+                    checked={formData.rememberMe}
+                    onChange={handleChange}
+                />
+                <label htmlFor="rememberMe" style={{ margin: 0, cursor: "pointer", fontSize: "0.875rem" }}>
+                    Ține-mă minte (Remember Me)
+                </label>
             </div>
 
             <button type="submit">

@@ -18,10 +18,11 @@ import BankLimitsPage from "./pages/BankLimitsPage.jsx";
 import UnlockUserPage from "./pages/admin/UnlockUserPage.jsx";
 import CreateSharedAccountPage from "./pages/admin/CreateSharedAccountPage.jsx";
 import RevokeAccessPage from "./pages/admin/RevokeAccessPage.jsx";
+import ErrorBoundary from "./components/common/ErrorBoundary.jsx";
 
 function App() {
     return (
-        <>
+        <ErrorBoundary>
             <Navbar />
             <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
@@ -127,7 +128,7 @@ function App() {
             />
             <Route path="*" element={<NotFoundPage />} />
         </Routes>
-        </>
+        </ErrorBoundary>
     );
 }
 

@@ -7,7 +7,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 public class LoginRequestDTO {
 
@@ -16,4 +15,17 @@ public class LoginRequestDTO {
     private String email;
     @NotBlank(message = "Password is required!")
     private String password;
+    private Boolean rememberMe;
+
+    public LoginRequestDTO(String email, String password) {
+        this.email = email;
+        this.password = password;
+        this.rememberMe = false;
+    }
+
+    public LoginRequestDTO(String email, String password, Boolean rememberMe) {
+        this.email = email;
+        this.password = password;
+        this.rememberMe = rememberMe;
+    }
 }

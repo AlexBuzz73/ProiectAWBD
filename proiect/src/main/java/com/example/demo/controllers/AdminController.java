@@ -7,6 +7,7 @@ import com.example.demo.dto.SharedAccountRequest;
 import com.example.demo.mappers.AccountMapper;
 import com.example.demo.services.AdminService;
 import com.example.demo.services.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,7 +34,7 @@ public class AdminController {
     }
 
     @PostMapping("/create-shared-account")
-    public ResponseEntity<AccountResponseDTO> createSharedAccount(@RequestBody SharedAccountRequest dto) {
+    public ResponseEntity<AccountResponseDTO> createSharedAccount(@Valid @RequestBody SharedAccountRequest dto) {
         Account account = adminService.createSharedAccount(dto);
         return ResponseEntity.ok(accountMapper.toAccountResponseDTO(account));
     }
