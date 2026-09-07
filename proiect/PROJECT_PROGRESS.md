@@ -1,7 +1,7 @@
 # PROJECT_PROGRESS
 
-Actualizat: 2026-09-07. Etapa curenta: Faza 1 – Extragerea user-service finalizata cu succes. Monolitul ramane 100% stabil si functional (tag git: `monolith-stable`).
-user-service este un microserviciu Spring Boot complet independent, cu propria baza de date, build propriu, teste trecute si autentificare JWT (RS256).
+Actualizat: 2026-09-07. Etapa curentă: **Faza 2 – Extragerea account-service finalizată cu succes**. Monolitul rămâne 100% stabil și funcțional (tag git: `monolith-stable`, 219 teste Java PASS).
+Atât `user-service` (port 8081) cât și `account-service` (port 8082) sunt microservicii Spring Boot complet independente, cu propriile baze de date (`user_db` și `account_db`), build-uri proprii, securitate distribuită OAuth2 RS256 JWT, comunicare inter-servicii via `RestClient` cu propagare de Bearer token și acoperire JaCoCo >= 70%.
 
 ## Checklist
 
@@ -15,13 +15,13 @@ user-service este un microserviciu Spring Boot complet independent, cu propria b
 - [x] Coverage >=70%
 - [x] README
 - [x] user-service
-- [ ] account-service
+- [x] account-service
 - [ ] transaction-service
 - [ ] Eureka
 - [ ] OpenFeign
 - [ ] Gateway
 - [ ] Load balancing
-- [ ] JWT/distributed security (in progres: emitere si validare Bearer JWT in user-service; validare la nivel de Gateway/Resursa distribuit pe celelalte servicii urmeaza)
+- [ ] JWT/distributed security (in progres: emitere si validare Bearer JWT in user-service si account-service; urmeaza propagare la Gateway si transaction-service)
 - [ ] Resilience4j
 - [ ] Actuator
 - [ ] Prometheus
@@ -35,126 +35,82 @@ user-service este un microserviciu Spring Boot complet independent, cu propria b
 
 ---
 
-## Faza 1 – Extragere user-service (finalizată)
+## Faza 2 – Extragere account-service (finalizată)
 
-Data finalizarii: 2026-09-07. S-a creat primul microserviciu de business independent: **`user-service`** (port 8081).
-Monolitul preexistent este stabilizat si pastrat intact sub tag-ul git **`monolith-stable`** (219 teste Java, suita E2E, CSRF si Remember Me).
+Data finalizării: 2026-09-07. S-a creat al doilea microserviciu de business independent: **`account-service`** (port 8082).
+Monolitul preexistent este păstrat intact sub tag-ul git **`monolith-stable`** (219 teste Java PASS).
+`user-service` rămâne funcțional (21 teste Java PASS, expunere publică JWKS la `/.well-known/jwks.json`).
 
 ### 1. Granița Arhitecturală și Responsabilități
-
-`user-service` este o aplicatie Spring Boot 4 / Java 25 complet de sine statatoare, localizata in `user-service/` (cu link de acces in radacina repository-ului).
+`account-service` este o aplicație Spring Boot 4 / Java 25 de sine stătătoare, localizată în `account-service/` (cu junction în rădăcina repository-ului).
 - **Responsabilități:**
-  - Gestionare `User` si `Individual` (profil persoana fizica)
-  - Validare date de inregistrare (CNP unic, varsta minima 18 ani)
-  - Hashing parole cu `BCryptPasswordEncoder`
-  - Autentificare credetiale si emitere de token-uri JWT asimetrice (RS256)
-  - Contorizare incercari esuate de login si blocare automata a contului dupa 3 esecuri
-  - Deblocare conturi de catre `ADMIN` (prin ID sau email)
-  - Expunere profil utilizator curent (`GET /api/users/me`)
-  - Endpoint-uri de lookup sigure pentru comunicare inter-servicii viitoare (`GET /api/users/{id}`, `GET /api/users/by-email`)
+  - Gestiune conturi bancare (`Account`), generare automată de IBAN valid (`ROxxBANK...`), sold inițial și alias
+  - Sistem de autorizare multi-user și partajare cont (`AccountAccess`: `OWNER`, `CO_OWNER`, `VIEWER`)
+  - Închidere cont (strict permisă doar pentru `OWNER`, doar pe sold zero și status `ACTIVE`)
+  - Emitere și administrare carduri de debit (`Card`: 16 cifre, CVV 3 cifre, expirare 3 ani în viitor, status `ACTIVE`/`BLOCKED`/`CLOSED`)
+  - Gestiune limite tranzacționale bancare (`BankLimit`) și per utilizator (`UserLimit`), cu validare că limitele de utilizator nu depășesc limitele băncii și fallback automat la limitele băncii când nu există limită specifică
+  - Partajare cont administrativă (`SharedAccountRequest`) pentru maxim 2 utilizatori, validând existența utilizatorilor prin apel REST securizat către `user-service`
+  - Agregare solduri per valută (`/api/accounts/summary/currency`) și paginare conturi (`/api/accounts/paged`)
 
 ### 2. Izolarea Datelor (Database Ownership)
+- `account-service` deține în mod suveran și exclusiv schema **`account_db`** (tabelele `accounts`, `account_access`, `cards`, `bank_limits`, `user_limits`).
+- **FĂRĂ relații JPA directe către User:** Relația `@ManyToOne User user` a fost înlocuită complet cu scalarul `Integer userId` în `AccountAccess` și `UserLimit`.
+- Nu există foreign keys către `user_db`.
+- Precizie financiară: Toate sumele și limitele folosesc `BigDecimal` (precizie 19, scară 4).
+- Blocare optimistă: `@Version private Long version;` pe entitatea `Account`.
+- Profiluri de bază de date: `test` (H2 in-memory), `dev` (MySQL local `account_db`), `prod` (variabile de mediu).
 
-- `user-service` detine in mod exclusiv schema **`user_db`** (tabelele `users` si `individuals`).
-- Niciun alt serviciu viitor (`account-service`, `transaction-service`) nu are acces SQL direct la `user_db`.
-- Entitatile JPA din `user-service` nu sunt partajate cu alte servicii si nu contin referinte catre conturi sau tranzactii.
-- Profiluri de baza de date:
-  - `test`: H2 in-memory (`jdbc:h2:mem:user_db`, `ddl-auto=create-drop`).
-  - `dev`: MySQL local (`jdbc:mysql://localhost:3306/user_db`, `ddl-auto=update`).
-  - `prod`: Configurare parametrizata din variabile de mediu (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`), fara secrete in cod.
+### 3. Securitate Distribuită & Resursă OAuth2
+- `account-service` este configurat ca **OAuth2 Resource Server** (`spring-boot-starter-oauth2-resource-server`).
+- Validează token-urile JWT asimetrice (RS256) emise de `user-service` folosind endpoint-ul public JWKS (`http://localhost:8081/.well-known/jwks.json`).
+- `CurrentUserService` extrage dinamic identitatea utilizatorului (`userId`, `username`, `email`, `role`) direct din claim-urile JWT verificate.
+- `ResourceAuthorizationService` aplică matricea strictă de permisiuni:
+  - `OWNER`: Acces deplin (inclusiv emitere/ștergere carduri, închidere cont).
+  - `CO_OWNER`: Acces operațional (vizualizare, emitere carduri, inițiere tranzacții; interzisă închiderea contului).
+  - `VIEWER`: Acces read-only (interzise emiterea de carduri, ștergerea cardurilor și modificarea contului).
+  - Utilizatorii fără acces sau cu rol insuficient primesc `HTTP 403 Forbidden`. Resursele inexistente returnează `HTTP 404 Not Found`.
 
-### 3. Design de Securitate Distribuită & JWT
+### 4. Comunicare Inter-servicii (`UserClient`)
+- Implementat prin Spring 6 `RestClient` cu URL configurabil (`user-service.url=http://localhost:8081`).
+- Propagă automat antetul `Authorization: Bearer <token>` din cererea curentă către `user-service`.
+- Validează existența utilizatorilor la partajarea contului; tratează HTTP 404 de la `user-service` transformându-l curat în `ResourceNotFoundException`.
 
-- **Standard Spring Security:** Implementat cu `spring-boot-starter-oauth2-resource-server` si `spring-security-oauth2-jose` (Nimbus JOSE).
-- **Semnare Asimetrică (RS256):** Cheie RSA pe 2048 de biți generata in `JwtConfig` cu posibilitate de injectare a cheilor externe.
-- **Claims JWT:**
-  - `iss`: `"user-service"`
-  - `sub`: email-ul utilizatorului
-  - `userId`: ID-ul numeric al utilizatorului
-  - `username`: numele de utilizator
-  - `role`: `"USER"` sau `"ADMIN"`
-  - `iat` / `exp`: durata de valabilitate de 2 ore (7200 secunde).
-  - **Filtrare strictă:** Niciun camp sensibil (parola, hash, CNP, telefon) nu este inclus in claims.
-- **Autentificare Stateless Bearer & CSRF:**
-  - Autentificarea foloseste antetul HTTP `Authorization: Bearer <token>`.
-  - CSRF este dezactivat in `user-service` (`csrf.disable()`) intrucat browserele nu trimit automat antetul `Authorization` in cereri cross-origin (spre deosebire de cookie-urile `JSESSIONID` din monolit, unde CSRF ramane activ).
-
-### 4. API Implementat (Port 8081)
-
-- `POST /api/auth/validate-individual` -> 200 / 400
-- `POST /api/auth/register` -> 201 / 400
-- `POST /api/auth/login` -> 200 (returneaza JWT, tokenType Bearer, expiresIn 7200, rol) / 400
-- `GET /api/users/me` -> 200 (profil `UserResponseDTO` fara hash/CNP) / 401
-- `GET /api/users/{id}` -> 200 (`UserLookupDTO` sigur) / 401 / 404
-- `GET /api/users/by-email?email=...` -> 200 (`UserLookupDTO`) / 401 / 404
-- `PUT /api/admin/users/{userId}/unlock` -> 200 / 401 / 403 (doar ADMIN)
-- `POST /api/admin/unlock-user?email=...` -> 200 / 401 / 403 (doar ADMIN)
-
-### 5. Verificare și Teste Executate
-
-#### Teste `user-service` (15 metode de test acoperind cele 17 cerințe obligatorii):
-1. Inregistrare valida -> creare utilizator si individ in DB, parola BCrypt.
-2. Inregistrare email duplicat -> 400.
-3. Inregistrare username duplicat -> 400.
-4. Date invalide (sub 18 ani, parola scurta, campuri goale) -> 400.
-5. Login valid -> 200 cu JWT valid.
-6. Parola invalida -> 400.
-7. Blocare utilizator dupa 3 incercari esuate -> cont blocat, mesaj de contact banca.
-8. Deblocare admin (dupa ID si dupa email) -> contul revine la ACTIVE si permite login.
-9. Parola BCrypt verificata ca nu este salvata in clar (prefix `$2a$`, matches).
-10. Login returneaza token JWT structurat (3 parti separate prin `.`).
-11. Claims JWT contin `sub`, `userId`, `username`, `role` si nu contin parole/CNP/telefon.
-12. Endpoint protejat fara token -> 401 Unauthorized (`{"error": "Autentificare necesara"}`).
-13. Endpoint protejat cu token invalid -> 401 Unauthorized.
-14. Utilizator obisnuit care acceseaza endpoint de admin -> 403 Forbidden (`{"error": "Acces interzis"}`).
-15. Administrator care acceseaza endpoint protejat -> 200 OK.
-16. `GET /api/users/me` returneaza datele utilizatorului curent fara campuri sensibile.
-17. Endpoint protejat functioneaza cu JWT valid.
-18. Validare individuala CNP si varsta.
-19. Lookup inter-servicii sigur (`UserLookupDTO`) si raspuns 404 pentru utilizator inexistent.
-20. Metoda HTTP nepermisa -> 405 Method Not Allowed.
-
-**Rezultate comenzi `user-service`:**
-- `.\gradlew.bat clean test`: **BUILD SUCCESSFUL, 15 teste, 0 failures, 0 skipped**.
-- `.\gradlew.bat build`: **BUILD SUCCESSFUL, JAR generat**.
-- Acoperire JaCoCo: **86% instrucțiuni** (1.105 / 1.278), **89% linii** (270 / 303), **100% controller-e**, **87% servicii**.
-- Test live HTTP: verificat comportament real prin HTTP (401 la request neautentificat, 201 la inregistrare, 200 la login cu Bearer token emis, 200 la `/api/users/me` cu Bearer token).
-
-#### Verificare de Regresie pe Monolit:
-- `.\gradlew.bat clean test`: **BUILD SUCCESSFUL, 219 teste, 0 failures, 0 skipped**. Monolitul ramane complet functional si neafectat.
+### 5. Rezultate Teste și Acoperire
+- **Teste `account-service`:** **37 teste PASS, 0 failures, 0 skipped**.
+- **Acoperire JaCoCo:** **79.80% instrucțiuni** (2.232 / 2.797), **80.62% linii** (491 / 609), depășind pragul minim de 70%.
+- **Test Live Inter-servicii (HTTP):** Scriptul `verify_live_services.py` a rulat împotriva `user-service` (port 8081) și `account-service` (port 8082):
+  1. Validare JWKS RFC 7517 public: PASS.
+  2. Înregistrare utilizator pe `user-service`: PASS (201 Created).
+  3. Login pe `user-service` și obținere JWT RS256: PASS (200 OK).
+  4. Creare cont pe `account-service` cu Bearer JWT: PASS (201 Created cu IBAN).
+  5. Listare conturi pe `account-service`: PASS (200 OK, rol OWNER).
+  6. Emitere card de debit pe `account-service`: PASS (201 Created, 16 cifre).
+  7. Verificare limite pe `account-service` cu fallback: PASS (200 OK).
+  8. Cerere fără token pe `account-service`: PASS (401 Unauthorized).
+- **Verificare regresie `user-service`:** **21 teste PASS, 0 failures, 0 skipped**.
+- **Verificare regresie Monolit:** **219 teste PASS, 0 failures, 0 skipped**.
 
 ---
 
-## Etapa 3 – Validare, Error Handling, Remember Me și Documentație (istoric)
+## Faza 1 – Extragere user-service (finalizată)
 
-Data verificarii: 2026-09-07. S-au implementat si verificat tratarea unitara a erorilor HTTP, validarea completa pe DTO-uri si controller-e, mecanismul Remember Me (backend + frontend), ErrorBoundary si pagina 404 in frontend, documentatia exhaustiva in README.md (cu diagrama ER Mermaid si catalog complet de API) si curatarea proprietatilor de productie.
-
----
-
-## Etapa 2 – Autorizarea resurselor pe baza sesiunii (istoric)
-
-Data verificarii: 2026-09-07. Problema IDOR a fost remediata pentru endpoint-urile HTTP. SecurityConfig, apiFetch si mecanismul CSRF din etapa 1 au fost pastrate.
+Data finalizării: 2026-09-07. S-a creat primul microserviciu de business independent: **`user-service`** (port 8081).
+Monolitul preexistent este stabilizat și păstrat intact sub tag-ul git **`monolith-stable`** (219 teste Java, suită E2E, CSRF și Remember Me).
+- Deține `user_db` (tabelele `users` și `individuals`).
+- Autentificare JWT RS256, hashing BCrypt, expunere publică JWKS la `/.well-known/jwks.json`.
+- 21 teste trecute, ~86% JaCoCo coverage.
 
 ---
 
-## Rezultatele etapei 1 (istoric)
-
-- Structura surselor backend, frontend, resurselor, configuratiilor si testelor inventariata inainte de modificari. Modificarile deja existente in working tree au fost pastrate; niciun test existent nu a fost sters.
-- CookieCsrfTokenRepository si CsrfTokenRequestAttributeHandler raman active. Login-ul custom apeleaza strategia Spring pentru schimbarea ID-ului sesiunii si stergerea tokenului anterior, apoi salveaza explicit un SecurityContext nou cu HttpServletResponse real.
-- Toate modulele frontend/src/api folosesc apiFetch si aceeasi valoare API_BASE_URL, cu fallback localhost:8080/api.
-
----
-
-## Planul Următorilor Pași (Faza 2: account-service)
+## Planul Următorilor Pași (Faza 3: transaction-service)
 
 Microserviciile rămase **NU au fost începute** în această etapă:
-1. **`account-service` (Faza 2 următoare):**
-   - Extragere conturi bancare, acces partajat (multi-user: OWNER, CO_OWNER, VIEWER), emitere și administrare carduri, limite de tranzacționare.
-   - Deținerea schemei `account_db`.
-   - Validare JWT ca OAuth2 Resource Server.
-   - Apeluri inter-servicii către `user-service` pentru validarea existenței utilizatorilor.
-2. **`transaction-service` (Faza 3 următoare):**
-   - Extragere plăți standard și urgente, transferuri proprii, plăți programate, schimb valutar, categorii.
+1. **`transaction-service` (Faza 3 următoare):**
+   - Extragere plăți standard și urgente, transferuri proprii, plăți programate, schimb valutar, categorii și etichete.
    - Deținerea schemei `transaction_db`.
-3. **Infrastructură Distribuită (Faza 4):**
+   - Bounded context: `Transaction`, `ScheduledPayment`, `Category`, `Tag`, `ExchangeRate`.
+   - FĂRĂ relații JPA directe către Account sau User (folosire `Long accountId` și `Integer userId` scalari).
+   - Validare JWT ca OAuth2 Resource Server.
+   - Apeluri inter-servicii către `account-service` pentru verificare sold și debitare/creditare conturi.
+2. **Infrastructură Distribuită (Faza 4):**
    - Eureka Service Discovery, Spring Cloud Gateway, Config Server, Resilience4j, Saga Pattern.
