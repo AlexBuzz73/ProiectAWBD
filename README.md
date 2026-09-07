@@ -400,6 +400,16 @@ Scenariile E2E acoperite:
 
 ## 8. Stadiul Proiectului și Pași Următori
 
+### Faza 4 – Service Discovery & OpenFeign (Finalizată)
+- **Eureka Server (Port 8761):** Registry central pentru toate microserviciile (`eureka-server`).
+- **OpenFeign Declarativ:** Comunicație inter-servicii fără URL-uri hardcodate:
+  - `account-service` -> `user-service` via `@FeignClient(name = "user-service")`
+  - `transaction-service` -> `account-service` via `@FeignClient(name = "account-service")`
+- **Securitate Distribuită:** `FeignAuthInterceptor` propagă automat token-ul Bearer JWT către serviciile consumate.
+- **Tratare Erori:** `CustomFeignErrorDecoder` asigură maparea statusurilor HTTP 400/403/404/503.
+- **Suită de teste:** 343 teste Java PASS pe întreg repository-ul, acoperire JaCoCo > 70%.
+
+
 ### Cerințe Mandatare Monolit Finalizate
 - [x] Arhitectură pe straturi: Controller, Service, Repository, DTO, Mapper, Entity.
 - [x] 12 entități JPA cu relații `@OneToOne`, `@OneToMany`, `@ManyToOne`, `@ManyToMany`.

@@ -79,6 +79,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<Map<String, String>> handleServiceUnavailable(ServiceUnavailableException ex) {
+        log.error("Downstream service unavailable: {}", ex.getMessage());
+        Map<String, String> body = new HashMap<>();
+        body.put("error", ex.getMessage() != null && !ex.getMessage().isBlank() ? ex.getMessage() : "Serviciul este temporar indisponibil");
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
+    }
+
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<Map<String, String>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
         log.warn("HTTP method not supported on transaction-service: {}", ex.getMessage());

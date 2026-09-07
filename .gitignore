@@ -13,3 +13,4 @@ Thumbs.db
 /user-service
 /account-service
 /transaction-service
+/eureka-server

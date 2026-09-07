@@ -1,7 +1,8 @@
 # PROJECT_PROGRESS
 
-Actualizat: 2026-09-08. Etapa curentă: **Faza 3 – Extragerea transaction-service finalizată cu succes**. Monolitul rămâne 100% stabil și funcțional (tag git: `monolith-stable`, 219 teste Java PASS).
-`user-service` (port 8081), `account-service` (port 8082) și `transaction-service` (port 8083) sunt microservicii Spring Boot complet independente, cu propriile baze de date (`user_db`, `account_db` și `transaction_db`), build-uri proprii, securitate distribuită OAuth2 RS256 JWT, comunicare inter-servicii via `RestClient` cu propagare automată de Bearer token și acoperire JaCoCo >= 70%.
+Actualizat: 2026-09-08. Etapa curentă: **Faza 4 – Eureka Server + OpenFeign + Service Discovery finalizată cu succes**. Monolitul rămâne 100% stabil și funcțional (tag git: `monolith-stable`, 219 teste Java PASS).
+Total teste Java active în întreg repo: **343 teste PASS** (Monolit: 219, Eureka Server: 1, user-service: 16, account-service: 44, transaction-service: 63).
+Toate cele 3 microservicii (`user-service`: 8081, `account-service`: 8082, `transaction-service`: 8083) sunt înregistrate dinamic în `eureka-server` (8761) și comunică inter-servicii declarativ prin Spring Cloud OpenFeign cu propagare automată de Bearer JWT token și decodare uniformă a erorilor HTTP, fără URL-uri hardcodate în logica de business.
 
 ## Checklist
 
@@ -17,13 +18,13 @@ Actualizat: 2026-09-08. Etapa curentă: **Faza 3 – Extragerea transaction-serv
 - [x] user-service
 - [x] account-service
 - [x] transaction-service
-- [ ] Eureka
-- [ ] OpenFeign
+- [x] Eureka
+- [x] OpenFeign
+- [x] JWT/distributed security (emitere RS256 in user-service, validare JWKS in account-service & transaction-service, propagare automata Bearer token prin Feign RequestInterceptor)
 - [ ] Gateway
-- [ ] Load balancing
-- [ ] JWT/distributed security (in progres: emitere si validare Bearer JWT in user-service, account-service si transaction-service; urmeaza propagare la Gateway)
+- [ ] Load balancing (multi-instance)
 - [ ] Resilience4j
-- [ ] Actuator
+- [ ] Actuator (integrat pe toate serviciile; urmeaza metrici avansate Prometheus)
 - [ ] Prometheus
 - [ ] Grafana
 - [ ] Redis
@@ -34,6 +35,68 @@ Actualizat: 2026-09-08. Etapa curentă: **Faza 3 – Extragerea transaction-serv
 - [ ] Deployment
 
 ---
+
+## Faza 4 – Eureka Server + OpenFeign + Service Discovery (finalizată)
+
+Data finalizării: 2026-09-08.
+S-a implementat complet arhitectura de **Service Discovery** și **Comunicare Inter-servicii Declarativă** folosind trenul de release **Spring Cloud 2025.1.3 (Oakwood)**, compatibil cu Spring Boot 4.0.5 și Java 25.
+
+### 1. Componente Implementate
+
+1. **`eureka-server` (Port 8761):**
+   - Modul independent `eureka-server/` cu build Gradle de sine stătător.
+   - Configurat cu `@EnableEurekaServer`, funcționare în mod standalone (`register-with-eureka=false`, `fetch-registry=false`).
+   - Actuator integrat (`/actuator/health`, `/actuator/info`).
+   - Test de context load și pornire registry verificat (`EurekaServerApplicationTests`).
+
+2. **Înregistrare Clienți Eureka:**
+   - **`user-service` (Port 8081):** `@EnableDiscoveryClient`, înregistrare automată în Eureka (`USER-SERVICE`), raportare stare instanță `UP`.
+   - **`account-service` (Port 8082):** `@EnableDiscoveryClient`, `@EnableFeignClients`, înregistrare automată în Eureka (`ACCOUNT-SERVICE`).
+   - **`transaction-service` (Port 8083):** `@EnableDiscoveryClient`, `@EnableFeignClients`, înregistrare automată în Eureka (`TRANSACTION-SERVICE`).
+
+3. **Comunicație Inter-servicii Declarativă (OpenFeign):**
+   - **`account-service` -> `user-service`:** Interfața `@FeignClient(name = "user-service", configuration = FeignClientConfig.class)` (`UserFeignClient`) rezolvă dinamic adresa serviciului de utilizatori prin Eureka, fără URL hardcodat.
+   - **`transaction-service` -> `account-service`:** Interfața `@FeignClient(name = "account-service", configuration = FeignClientConfig.class)` (`AccountFeignClient`) rezolvă dinamic adresa serviciului de conturi prin Eureka pentru debitare, creditare, interogare sold, verificare acces cont și limite.
+   - Eliminarea proprietăților de URL hardcodat (`user-service.url`, `account-service.url`) din logica de business; serviciile apelează exclusiv clienții Feign numiți.
+
+4. **Propagare Securitate & Bearer Token (`FeignAuthInterceptor`):**
+   - Interceptor dedicat Feign (`RequestInterceptor`) implementat în ambele servicii consumatoare.
+   - Extrage antetul `Authorization: Bearer <token>` din contextul cererii HTTP curente (`RequestContextHolder` / `HttpServletRequest`).
+   - Mecanism de fallback pe `SecurityContextHolder` (`JwtAuthenticationToken`) pentru operațiuni asincrone sau background jobs autentificate.
+   - Asigură propagarea transparentă a identității utilizatorului apelant de-a lungul întregului lanț de apeluri inter-servicii.
+
+5. **Tratare Centralizată a Erorilor Feign (`CustomFeignErrorDecoder`):**
+   - Decodor personalizat `ErrorDecoder` pentru maparea controlată a răspunsurilor HTTP din microserviciile apelate:
+     - `HTTP 404` -> `ResourceNotFoundException`
+     - `HTTP 403` -> `AccessDeniedException`
+     - `HTTP 400` -> `IllegalArgumentException`
+     - `HTTP 503 / 504` -> `ServiceUnavailableException` (mapat la HTTP 503 prin `GlobalExceptionHandler`)
+   - Previne propagarea excepțiilor brute `FeignException` către clienții externi.
+
+### 2. Rezultate Teste și Verificare Live
+
+- **Verificare Regresie Suită Completă (343 teste Java PASS):**
+  - **Monolit (`proiect`):** **219 teste PASS, 0 failures, 0 skipped** (JaCoCo: 77.16%).
+  - **`eureka-server`:** **1 test PASS, 0 failures, 0 skipped**.
+  - **`user-service`:** **16 teste PASS, 0 failures, 0 skipped** (JaCoCo: 86.76%).
+  - **`account-service`:** **44 teste PASS, 0 failures, 0 skipped** (JaCoCo: 70.69%).
+  - **`transaction-service`:** **63 teste PASS, 0 failures, 0 skipped** (JaCoCo: 76.84%).
+- **Verificare Live End-to-End (`verify_phase4_service_discovery.py`):**
+  - Toate cele 4 componente au fost pornite concurent (`eureka-server` 8761, `user-service` 8081, `account-service` 8082, `transaction-service` 8083).
+  - Registry-ul Eureka a raportat toate cele 3 instanțe `{'USER-SERVICE', 'ACCOUNT-SERVICE', 'TRANSACTION-SERVICE'}` cu status `UP`.
+  - S-a executat fluxul E2E complet prin OpenFeign:
+    1. Înregistrare utilizator Alpha pe `user-service` (201 Created).
+    2. Autentificare Alpha -> obținere JWT RS256 (200 OK, ID=1).
+    3. Înregistrare și autentificare utilizator Beta (ID=2).
+    4. Creare conturi RON și EUR pe `account-service` folosind JWT (201 Created).
+    5. Creare categorie pe `transaction-service` (201 Created).
+    6. Transfer între conturi proprii (`transfer-own`) pe `transaction-service`: rezolvare dinamică Eureka către `account-service`, propagare token Bearer, debitare și creditare executate cu succes (status EXECUTED, solduri verificate: Acc1 = 900 RON, Acc2 = 300 RON).
+    7. Plată urgentă (`initiate` URGENT) de 50 RON către Beta: debitare Acc1 (850 RON) și creditare Acc4 (550 RON) prin OpenFeign.
+    8. Schimb valutar (`exchange`) RON -> EUR prin OpenFeign: sold Acc1 = 800 RON, sold Acc3 = 10.05 EUR.
+    9. Interogare istoric tranzacții: 3 tranzacții înregistrate și paginate.
+    10. Verificare securitate IDOR: Beta încearcă să acceseze istoricul tranzacțiilor din contul lui Alpha -> **403 Forbidden** ca așteptat.
+    11. Verificare acces neautentificat: cerere fără token -> **401 Unauthorized** ca așteptat.
+  - Oprire curată a tuturor proceselor.
 
 ## Faza 3 – Extragere transaction-service (finalizată)
 

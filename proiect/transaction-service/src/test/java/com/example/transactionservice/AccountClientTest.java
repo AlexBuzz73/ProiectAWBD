@@ -1,196 +1,264 @@
 package com.example.transactionservice;
 
 import com.example.transactionservice.client.AccountClient;
+import com.example.transactionservice.client.AccountFeignClient;
+import com.example.transactionservice.client.CustomFeignErrorDecoder;
+import com.example.transactionservice.client.FeignAuthInterceptor;
 import com.example.transactionservice.dto.AccountInternalSummaryDTO;
+import com.example.transactionservice.dto.CreditRequestDTO;
+import com.example.transactionservice.dto.DebitRequestDTO;
 import com.example.transactionservice.dto.UserLimitResponseDTO;
 import com.example.transactionservice.exceptions.ResourceNotFoundException;
-import com.example.transactionservice.services.CurrentUserService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.transactionservice.exceptions.ServiceUnavailableException;
+import feign.Request;
+import feign.RequestTemplate;
+import feign.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.test.web.client.match.MockRestRequestMatchers;
-import org.springframework.test.web.client.response.MockRestResponseCreators;
-import org.springframework.web.client.RestClient;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpHeaders;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class AccountClientTest {
 
+    @Mock
+    private AccountFeignClient accountFeignClient;
+
     private AccountClient accountClient;
-    private MockRestServiceServer mockServer;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private CurrentUserService currentUserService;
+    private FeignAuthInterceptor authInterceptor;
+    private CustomFeignErrorDecoder errorDecoder;
 
     @BeforeEach
-    void setUp() throws Exception {
-        currentUserService = Mockito.mock(CurrentUserService.class);
-        Mockito.when(currentUserService.getJwtTokenValue()).thenReturn("test-token");
-
-        RestClient.Builder builder = RestClient.builder().baseUrl("http://localhost:8082");
-        mockServer = MockRestServiceServer.bindTo(builder).build();
-        RestClient restClient = builder.build();
-
-        accountClient = new AccountClient(restClient, currentUserService);
+    void setUp() {
+        accountClient = new AccountClient(accountFeignClient);
+        authInterceptor = new FeignAuthInterceptor();
+        errorDecoder = new CustomFeignErrorDecoder();
+        RequestContextHolder.resetRequestAttributes();
+        SecurityContextHolder.clearContext();
     }
 
     @Test
     @DisplayName("getAccount returns AccountInternalSummaryDTO on 200 OK")
-    void testGetAccountSuccess() throws Exception {
+    void testGetAccountSuccess() {
         AccountInternalSummaryDTO expected = new AccountInternalSummaryDTO(
                 1L, "RO11BANK0000000000000001", "Main RON", "RON", new BigDecimal("1500.00"), "ACTIVE"
         );
-
-        mockServer.expect(MockRestRequestMatchers.requestTo("http://localhost:8082/api/internal/accounts/1"))
-                .andExpect(MockRestRequestMatchers.method(HttpMethod.GET))
-                .andExpect(MockRestRequestMatchers.header("Authorization", "Bearer test-token"))
-                .andRespond(MockRestResponseCreators.withSuccess(objectMapper.writeValueAsString(expected), MediaType.APPLICATION_JSON));
+        when(accountFeignClient.getAccount(1L)).thenReturn(expected);
 
         AccountInternalSummaryDTO result = accountClient.getAccount(1L);
         assertThat(result).isNotNull();
         assertThat(result.getAccountId()).isEqualTo(1L);
         assertThat(result.getBalance()).isEqualByComparingTo("1500.00");
-        mockServer.verify();
     }
 
     @Test
     @DisplayName("getAccount throws ResourceNotFoundException on 404")
     void testGetAccountNotFound() {
-        mockServer.expect(MockRestRequestMatchers.requestTo("http://localhost:8082/api/internal/accounts/999"))
-                .andExpect(MockRestRequestMatchers.method(HttpMethod.GET))
-                .andRespond(MockRestResponseCreators.withStatus(HttpStatus.NOT_FOUND));
+        when(accountFeignClient.getAccount(999L)).thenThrow(new ResourceNotFoundException("Not found"));
 
         assertThatThrownBy(() -> accountClient.getAccount(999L))
                 .isInstanceOf(ResourceNotFoundException.class);
-        mockServer.verify();
     }
 
     @Test
     @DisplayName("getAccountByIban returns AccountInternalSummaryDTO on 200 OK")
-    void testGetAccountByIbanSuccess() throws Exception {
+    void testGetAccountByIbanSuccess() {
         AccountInternalSummaryDTO expected = new AccountInternalSummaryDTO(
                 2L, "RO11BANK0000000000000002", "Dest EUR", "EUR", new BigDecimal("500.00"), "ACTIVE"
         );
-
-        mockServer.expect(MockRestRequestMatchers.requestTo("http://localhost:8082/api/internal/accounts/by-iban/RO11BANK0000000000000002"))
-                .andExpect(MockRestRequestMatchers.method(HttpMethod.GET))
-                .andRespond(MockRestResponseCreators.withSuccess(objectMapper.writeValueAsString(expected), MediaType.APPLICATION_JSON));
+        when(accountFeignClient.getAccountByIban("RO11BANK0000000000000002")).thenReturn(expected);
 
         AccountInternalSummaryDTO result = accountClient.getAccountByIban("RO11BANK0000000000000002");
         assertThat(result).isNotNull();
         assertThat(result.getIban()).isEqualTo("RO11BANK0000000000000002");
-        mockServer.verify();
     }
 
     @Test
-    @DisplayName("getAccountByIban returns null on 404")
+    @DisplayName("getAccountByIban returns null on ResourceNotFoundException")
     void testGetAccountByIbanNotFound() {
-        mockServer.expect(MockRestRequestMatchers.requestTo("http://localhost:8082/api/internal/accounts/by-iban/RO99UNKNOWN"))
-                .andExpect(MockRestRequestMatchers.method(HttpMethod.GET))
-                .andRespond(MockRestResponseCreators.withStatus(HttpStatus.NOT_FOUND));
+        when(accountFeignClient.getAccountByIban("RO99UNKNOWN")).thenThrow(new ResourceNotFoundException("Not found"));
 
         AccountInternalSummaryDTO result = accountClient.getAccountByIban("RO99UNKNOWN");
         assertThat(result).isNull();
-        mockServer.verify();
     }
 
     @Test
     @DisplayName("debit returns updated summary on 200 OK")
-    void testDebitSuccess() throws Exception {
+    void testDebitSuccess() {
         AccountInternalSummaryDTO expected = new AccountInternalSummaryDTO(
                 1L, "RO11BANK0000000000000001", "Main RON", "RON", new BigDecimal("1400.00"), "ACTIVE"
         );
-
-        mockServer.expect(MockRestRequestMatchers.requestTo("http://localhost:8082/api/internal/accounts/1/debit"))
-                .andExpect(MockRestRequestMatchers.method(HttpMethod.POST))
-                .andRespond(MockRestResponseCreators.withSuccess(objectMapper.writeValueAsString(expected), MediaType.APPLICATION_JSON));
+        when(accountFeignClient.debit(eq(1L), any(DebitRequestDTO.class))).thenReturn(expected);
 
         AccountInternalSummaryDTO result = accountClient.debit(1L, new BigDecimal("100.00"), "OP-1");
         assertThat(result).isNotNull();
         assertThat(result.getBalance()).isEqualByComparingTo("1400.00");
-        mockServer.verify();
     }
 
     @Test
-    @DisplayName("debit throws IllegalArgumentException on 400 Bad Request")
+    @DisplayName("debit throws IllegalArgumentException on failure")
     void testDebitFailure() {
-        mockServer.expect(MockRestRequestMatchers.requestTo("http://localhost:8082/api/internal/accounts/1/debit"))
-                .andExpect(MockRestRequestMatchers.method(HttpMethod.POST))
-                .andRespond(MockRestResponseCreators.withStatus(HttpStatus.BAD_REQUEST));
+        when(accountFeignClient.debit(eq(1L), any(DebitRequestDTO.class))).thenThrow(new RuntimeException("Balance too low"));
 
         assertThatThrownBy(() -> accountClient.debit(1L, new BigDecimal("99999.00"), "OP-FAIL"))
                 .isInstanceOf(IllegalArgumentException.class);
-        mockServer.verify();
     }
 
     @Test
     @DisplayName("credit returns updated summary on 200 OK")
-    void testCreditSuccess() throws Exception {
+    void testCreditSuccess() {
         AccountInternalSummaryDTO expected = new AccountInternalSummaryDTO(
                 2L, "RO11BANK0000000000000002", "Dest EUR", "EUR", new BigDecimal("600.00"), "ACTIVE"
         );
-
-        mockServer.expect(MockRestRequestMatchers.requestTo("http://localhost:8082/api/internal/accounts/2/credit"))
-                .andExpect(MockRestRequestMatchers.method(HttpMethod.POST))
-                .andRespond(MockRestResponseCreators.withSuccess(objectMapper.writeValueAsString(expected), MediaType.APPLICATION_JSON));
+        when(accountFeignClient.credit(eq(2L), any(CreditRequestDTO.class))).thenReturn(expected);
 
         AccountInternalSummaryDTO result = accountClient.credit(2L, new BigDecimal("100.00"), "OP-2");
         assertThat(result).isNotNull();
         assertThat(result.getBalance()).isEqualByComparingTo("600.00");
-        mockServer.verify();
     }
 
     @Test
     @DisplayName("checkAccess returns true when access is granted")
     void testCheckAccessSuccess() {
-        mockServer.expect(MockRestRequestMatchers.requestTo("http://localhost:8082/api/internal/accounts/1/access-check?userId=10&requiredRole=CO_OWNER"))
-                .andExpect(MockRestRequestMatchers.method(HttpMethod.GET))
-                .andRespond(MockRestResponseCreators.withSuccess("true", MediaType.APPLICATION_JSON));
+        when(accountFeignClient.checkAccess(1L, 10, "CO_OWNER")).thenReturn(true);
 
         boolean allowed = accountClient.checkAccess(1L, 10, "CO_OWNER");
         assertThat(allowed).isTrue();
-        mockServer.verify();
     }
 
     @Test
     @DisplayName("getUserLimits returns limits on 200 OK")
-    void testGetUserLimitsSuccess() throws Exception {
+    void testGetUserLimitsSuccess() {
         UserLimitResponseDTO expected = new UserLimitResponseDTO(1, new BigDecimal("5000.00"), new BigDecimal("20000.00"), new BigDecimal("10"), "ACTIVE");
-
-        mockServer.expect(MockRestRequestMatchers.requestTo("http://localhost:8082/api/internal/accounts/limits/user/10"))
-                .andExpect(MockRestRequestMatchers.method(HttpMethod.GET))
-                .andRespond(MockRestResponseCreators.withSuccess(objectMapper.writeValueAsString(expected), MediaType.APPLICATION_JSON));
+        when(accountFeignClient.getUserLimits(10)).thenReturn(expected);
 
         UserLimitResponseDTO result = accountClient.getUserLimits(10);
         assertThat(result).isNotNull();
         assertThat(result.getMaxAmountPerTransactionRon()).isEqualByComparingTo("5000.00");
-        mockServer.verify();
     }
 
     @Test
     @DisplayName("getUserAccounts returns list on 200 OK")
-    void testGetUserAccountsSuccess() throws Exception {
+    void testGetUserAccountsSuccess() {
         List<AccountInternalSummaryDTO> expected = List.of(
                 new AccountInternalSummaryDTO(1L, "RO11BANK0000000000000001", "RON acc", "RON", new BigDecimal("1000.00"), "ACTIVE")
         );
-
-        mockServer.expect(MockRestRequestMatchers.requestTo("http://localhost:8082/api/internal/accounts/user/10"))
-                .andExpect(MockRestRequestMatchers.method(HttpMethod.GET))
-                .andRespond(MockRestResponseCreators.withSuccess(objectMapper.writeValueAsString(expected), MediaType.APPLICATION_JSON));
+        when(accountFeignClient.getUserAccounts(10)).thenReturn(expected);
 
         List<AccountInternalSummaryDTO> result = accountClient.getUserAccounts(10);
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getAccountId()).isEqualTo(1L);
-        mockServer.verify();
+    }
+
+    @Test
+    @DisplayName("FeignAuthInterceptor propagates Authorization from current HttpServletRequest")
+    void testFeignAuthInterceptorFromHttpRequest() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer test-http-token-account");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        RequestTemplate template = new RequestTemplate();
+        authInterceptor.apply(template);
+
+        Collection<String> authHeaders = template.headers().get(HttpHeaders.AUTHORIZATION);
+        assertThat(authHeaders).isNotNull().contains("Bearer test-http-token-account");
+    }
+
+    @Test
+    @DisplayName("FeignAuthInterceptor propagates Bearer token from SecurityContext fallback")
+    void testFeignAuthInterceptorFromSecurityContext() {
+        Jwt jwt = Jwt.withTokenValue("jwt-security-token-feign")
+                .header("alg", "RS256")
+                .claim("sub", "user@test.com")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build();
+        JwtAuthenticationToken authToken = new JwtAuthenticationToken(jwt);
+        SecurityContextHolder.getContext().setAuthentication(authToken);
+
+        RequestTemplate template = new RequestTemplate();
+        authInterceptor.apply(template);
+
+        Collection<String> authHeaders = template.headers().get(HttpHeaders.AUTHORIZATION);
+        assertThat(authHeaders).isNotNull().contains("Bearer jwt-security-token-feign");
+    }
+
+    @Test
+    @DisplayName("CustomFeignErrorDecoder maps HTTP 404 to ResourceNotFoundException")
+    void testErrorDecoder404() {
+        Response response = Response.builder()
+                .status(404)
+                .reason("Not Found")
+                .request(Request.create(Request.HttpMethod.GET, "/api/internal/accounts/1", Collections.emptyMap(), null, StandardCharsets.UTF_8, null))
+                .headers(Collections.emptyMap())
+                .build();
+
+        Exception ex = errorDecoder.decode("getAccount", response);
+        assertThat(ex).isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("CustomFeignErrorDecoder maps HTTP 403 to AccessDeniedException")
+    void testErrorDecoder403() {
+        Response response = Response.builder()
+                .status(403)
+                .reason("Forbidden")
+                .request(Request.create(Request.HttpMethod.GET, "/api/internal/accounts/1", Collections.emptyMap(), null, StandardCharsets.UTF_8, null))
+                .headers(Collections.emptyMap())
+                .build();
+
+        Exception ex = errorDecoder.decode("getAccount", response);
+        assertThat(ex).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("CustomFeignErrorDecoder maps HTTP 400 to IllegalArgumentException")
+    void testErrorDecoder400() {
+        Response response = Response.builder()
+                .status(400)
+                .reason("Bad Request")
+                .request(Request.create(Request.HttpMethod.GET, "/api/internal/accounts/1", Collections.emptyMap(), null, StandardCharsets.UTF_8, null))
+                .headers(Collections.emptyMap())
+                .build();
+
+        Exception ex = errorDecoder.decode("getAccount", response);
+        assertThat(ex).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("CustomFeignErrorDecoder maps HTTP 503 to ServiceUnavailableException")
+    void testErrorDecoder503() {
+        Response response = Response.builder()
+                .status(503)
+                .reason("Service Unavailable")
+                .request(Request.create(Request.HttpMethod.GET, "/api/internal/accounts/1", Collections.emptyMap(), null, StandardCharsets.UTF_8, null))
+                .headers(Collections.emptyMap())
+                .build();
+
+        Exception ex = errorDecoder.decode("getAccount", response);
+        assertThat(ex).isInstanceOf(ServiceUnavailableException.class);
     }
 }

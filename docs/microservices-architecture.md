@@ -12,8 +12,10 @@ Acest document descrie tranziția aplicației Internet Banking de la arhitectura
 | **`user-service`** | `8081` | **EXTRAVASAT & ACTIV (Faza 1)** | Gestiune utilizatori, profiluri persoane fizice, autentificare JWT RS256, expunere endpoint RFC 7517 JWKS (`/.well-known/jwks.json`), hashing BCrypt, contor eșecuri, blocare/deblocare admin. Deține exclusiv baza de date `user_db`. 21 teste trecute, ~86% acoperire JaCoCo. |
 | **`account-service`** | `8082` | **EXTRAVASAT & ACTIV (Faza 2)** | Gestiune conturi curente, acces partajat multi-user (`OWNER`, `CO_OWNER`, `VIEWER`), emitere și administrare carduri, limite tranzacționale (bancă + utilizator cu fallback). OAuth2 Resource Server RS256. Deține exclusiv baza de date `account_db`. 37 teste trecute, ~80% acoperire JaCoCo. |
 | **`transaction-service`** | `8083` | **EXTRAVASAT & ACTIV (Faza 3)** | Plăți standard și urgente, transferuri între conturi proprii, schimb valutar, plăți programate, categorii și etichete. Joburi de fundal (`PaymentJob`, `ScheduledPaymentJob`, `ExchangeRateUpdateJob`). OAuth2 Resource Server RS256. Deține exclusiv baza de date `transaction_db`. 57 teste trecute, ~77% acoperire JaCoCo. |
-| **`api-gateway`** | `8080/80` | **NEEXTRAVASAT (Planificat - Faza 4)** | Punct unic de intrare (Spring Cloud Gateway), rutare, validare JWT, rate limiting. |
-| **`eureka-server`** | `8761` | **NEEXTRAVASAT (Planificat - Faza 4)** | Service Discovery & Registry pentru înregistrarea dinamică a microserviciilor. |
+| **`eureka-server`** | `8761` | **ACTIV & OPERAȚIONAL (Faza 4)** | Service Discovery & Registry Spring Cloud Netflix Eureka. Înregistrare automată a tuturor microserviciilor, verificări de heartbeat, endpoint-uri de actuator. |
+| **`account-service`** | `8082` | **ACTIV & INTEGRAT CU EUREKA (Faza 4)** | OAuth2 Resource Server + OpenFeign Client (`UserFeignClient`) către `user-service` cu propagare token Bearer. 44 teste PASS, ~71% JaCoCo. |
+| **`transaction-service`** | `8083` | **ACTIV & INTEGRAT CU EUREKA (Faza 4)** | OAuth2 Resource Server + OpenFeign Client (`AccountFeignClient`) către `account-service` cu propagare token Bearer. 63 teste PASS, ~77% JaCoCo. |
+| **`api-gateway`** | `8080/80` | **NEEXTRAVASAT (Planificat - Faza 5)** | Punct unic de intrare (Spring Cloud Gateway), rutare dinamică via Eureka, validare centralizată JWT, rate limiting. |
 
 ---
 
@@ -156,6 +158,64 @@ Fiecare microserviciu deține în mod suveran schema de bază de date proprie. N
 - **Trecerea la Faza 4:** În faza următoare se va implementa un **Saga Orchestrator** cu tranzacții compensatorii automate (ex: refund/compensate debit pe contul sursă dacă etapa de credit eșuează).
 
 ---
+
+
+---
+
+## 5.1 Service Discovery și Comunicare Declarativă OpenFeign (Faza 4)
+
+### Arhitectura Service Discovery (Netflix Eureka)
+- **`eureka-server`** rulează pe portul standard `8761` (`@EnableEurekaServer`).
+- Fiecare microserviciu este un client Eureka (`spring-cloud-starter-netflix-eureka-client` cu `@EnableDiscoveryClient`):
+  - `USER-SERVICE` (port 8081)
+  - `ACCOUNT-SERVICE` (port 8082)
+  - `TRANSACTION-SERVICE` (port 8083)
+- Înregistrarea se face cu `eureka.instance.prefer-ip-address=true` și reînnoiri periodice de lease.
+- În mediul de test, Eureka poate fi dezactivat izolat prin `eureka.client.enabled=false`.
+
+### Comunicare Inter-servicii (Spring Cloud OpenFeign)
+Apelurile inter-servicii elimină orice URL hardcodat prin utilizarea clienților declarativi OpenFeign:
+1. **`UserFeignClient` (în `account-service`):**
+   ```java
+   @FeignClient(name = "user-service", configuration = FeignClientConfig.class)
+   public interface UserFeignClient {
+       @GetMapping("/api/users/{id}")
+       UserLookupDTO getUserById(@PathVariable("id") Integer id);
+
+       @GetMapping("/api/users/by-email")
+       UserLookupDTO getUserByEmail(@RequestParam("email") String email);
+   }
+   ```
+2. **`AccountFeignClient` (în `transaction-service`):**
+   ```java
+   @FeignClient(name = "account-service", configuration = FeignClientConfig.class)
+   public interface AccountFeignClient {
+       @GetMapping("/api/internal/accounts/{accountId}")
+       AccountInternalSummaryDTO getAccount(@PathVariable("accountId") Long accountId);
+
+       @GetMapping("/api/internal/accounts/by-iban/{iban}")
+       AccountInternalSummaryDTO getAccountByIban(@PathVariable("iban") String iban);
+
+       @PostMapping("/api/internal/accounts/{accountId}/debit")
+       AccountInternalSummaryDTO debit(@PathVariable("accountId") Long accountId, @RequestBody DebitRequestDTO dto);
+
+       @PostMapping("/api/internal/accounts/{accountId}/credit")
+       AccountInternalSummaryDTO credit(@PathVariable("accountId") Long accountId, @RequestBody CreditRequestDTO dto);
+
+       @GetMapping("/api/internal/accounts/{accountId}/access-check")
+       Boolean checkAccess(@PathVariable("accountId") Long accountId, @RequestParam("userId") Integer userId, @RequestParam(value = "requiredRole", required = false) String requiredRole);
+
+       @GetMapping("/api/internal/accounts/limits/user/{userId}")
+       UserLimitResponseDTO getUserLimits(@PathVariable("userId") Integer userId);
+
+       @GetMapping("/api/internal/accounts/user/{userId}")
+       List<AccountInternalSummaryDTO> getUserAccounts(@PathVariable("userId") Integer userId);
+   }
+   ```
+
+### Propagare Token & Error Decoding
+- **`FeignAuthInterceptor`:** Interceptor Feign care extrage antetul `Authorization: Bearer <token>` din `RequestContextHolder` (sau `SecurityContextHolder`) și îl include în cererile HTTP efectuate către celelalte servicii.
+- **`CustomFeignErrorDecoder`:** Interceptează răspunsurile de eroare ale serviciilor apelate și le traduce în excepții specifice aplicației (`ResourceNotFoundException` la 404, `AccessDeniedException` la 403, `IllegalArgumentException` la 400, `ServiceUnavailableException` la 503).
 
 ## 6. Catalog API – Microservicii
 
