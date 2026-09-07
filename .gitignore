@@ -8,3 +8,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Root junction
+/user-service
