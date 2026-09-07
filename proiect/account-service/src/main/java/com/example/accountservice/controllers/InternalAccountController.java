@@ -1,13 +1,14 @@
 package com.example.accountservice.controllers;
 
-import com.example.accountservice.dto.AccountInternalSummaryDTO;
-import com.example.accountservice.dto.CreditRequestDTO;
-import com.example.accountservice.dto.DebitRequestDTO;
+import com.example.accountservice.dto.*;
 import com.example.accountservice.services.AccountService;
+import com.example.accountservice.services.LimitService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/internal/accounts")
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 public class InternalAccountController {
 
     private final AccountService accountService;
+    private final LimitService limitService;
 
     @GetMapping("/{accountId}")
     public ResponseEntity<AccountInternalSummaryDTO> getAccountSummary(@PathVariable Long accountId) {
@@ -51,5 +53,17 @@ public class InternalAccountController {
             @RequestParam(required = false) String requiredRole) {
         boolean hasAccess = accountService.checkUserAccountAccess(accountId, userId, requiredRole);
         return ResponseEntity.ok(hasAccess);
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<AccountInternalSummaryDTO>> getUserAccounts(@PathVariable Integer userId) {
+        List<AccountInternalSummaryDTO> summaries = accountService.getActiveAccountInternalSummariesForUser(userId);
+        return ResponseEntity.ok(summaries);
+    }
+
+    @GetMapping("/limits/user/{userId}")
+    public ResponseEntity<UserLimitResponseDTO> getUserLimits(@PathVariable Integer userId) {
+        UserLimitResponseDTO limits = limitService.getUserLimits(userId);
+        return ResponseEntity.ok(limits);
     }
 }

@@ -31,4 +31,5 @@ public interface AccountService {
     AccountInternalSummaryDTO creditAccount(Long accountId, java.math.BigDecimal amount, String operationId);
 
     boolean checkUserAccountAccess(Long accountId, Integer userId, String requiredRole);
+    List<AccountInternalSummaryDTO> getActiveAccountInternalSummariesForUser(Integer userId);
 }

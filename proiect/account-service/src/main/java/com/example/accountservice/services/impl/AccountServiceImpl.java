@@ -341,4 +341,21 @@ public class AccountServiceImpl implements AccountService {
         }
         return false;
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AccountInternalSummaryDTO> getActiveAccountInternalSummariesForUser(Integer userId) {
+        List<AccountAccess> accesses = accountAccessRepository.findByUserIdAndStatus(userId, "ACTIVE");
+        return accesses.stream()
+                .filter(access -> "ACTIVE".equalsIgnoreCase(access.getAccount().getStatus()))
+                .map(access -> new AccountInternalSummaryDTO(
+                        access.getAccount().getAccountId(),
+                        access.getAccount().getIban(),
+                        access.getAccount().getAlias(),
+                        access.getAccount().getCurrency(),
+                        access.getAccount().getBalance(),
+                        access.getAccount().getStatus()
+                ))
+                .toList();
+    }
 }
