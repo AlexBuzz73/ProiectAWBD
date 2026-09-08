@@ -400,15 +400,14 @@ Scenariile E2E acoperite:
 
 ## 8. Stadiul Proiectului și Pași Următori
 
-### Faza 4 – Service Discovery & OpenFeign (Finalizată)
-- **Eureka Server (Port 8761):** Registry central pentru toate microserviciile (`eureka-server`).
-- **OpenFeign Declarativ:** Comunicație inter-servicii fără URL-uri hardcodate:
-  - `account-service` -> `user-service` via `@FeignClient(name = "user-service")`
-  - `transaction-service` -> `account-service` via `@FeignClient(name = "account-service")`
-- **Securitate Distribuită:** `FeignAuthInterceptor` propagă automat token-ul Bearer JWT către serviciile consumate.
-- **Tratare Erori:** `CustomFeignErrorDecoder` asigură maparea statusurilor HTTP 400/403/404/503.
-- **Suită de teste:** 343 teste Java PASS pe întreg repository-ul, acoperire JaCoCo > 70%.
-
+### Faza 6 – Spring Cloud API Gateway (Finalizată)
+- **API Gateway (`gateway-service` pe Port 8090):** Punct central de intrare pentru clienți și frontend bazat pe Spring Cloud Gateway WebFlux.
+- **Rutare Dinamică:** Rutare prin Eureka (`lb://user-service`, `lb://account-service`, `lb://transaction-service`) fără URL-uri hardcodate.
+- **Securitate Centralizată:** Reactive OAuth2 Resource Server validând JWT RS256 prin JWKS public; RBAC la nivel de gateway (`ROLE_ADMIN`).
+- **Rate Limiting In-Memory:** Algoritm Token Bucket thread-safe returnând HTTP 429 Too Many Requests cu antet `Retry-After`.
+- **Trasabilitate:** Generare și propagare automată `X-Correlation-Id` și marcare `X-Gateway-Service: gateway-service`.
+- **CORS Centralizat:** Gestionat pentru originea frontend Vite `http://localhost:5173`.
+- **Suită de teste:** 374 teste Java PASS pe întreg repository-ul, acoperire JaCoCo > 70% peste tot (Gateway: 94.90%).
 
 ### Cerințe Mandatare Monolit Finalizate
 - [x] Arhitectură pe straturi: Controller, Service, Repository, DTO, Mapper, Entity.
@@ -423,46 +422,45 @@ Scenariile E2E acoperite:
 - [x] Acoperire de cod JaCoCo peste 77% (peste pragul minim de 70%).
 
 ### Microservicii Extrase și Funcționale
-- [x] **`user-service` (Port 8081)**: Deține `user_db` (`users`, `individuals`), autentificare JWT RS256, hashing BCrypt, endpoint public JWKS (`/.well-known/jwks.json`), 21 teste PASS, ~86% JaCoCo.
-- [x] **`account-service`** (Port 8082): Deține `account_db` (`accounts`, `account_access`, `cards`, `bank_limits`, `user_limits`), OAuth2 Resource Server RS256, model monetar `BigDecimal`, versionare optimistă `@Version`, 37 teste PASS, ~80% JaCoCo.
-- [x] **`transaction-service`** (Port 8083): Deține `transaction_db` (`transactions`, `scheduled_payments`, `exchange_rates`, `categories`, `tags`, `transaction_tags`), OAuth2 Resource Server RS256, plăți standard și urgente, transferuri proprii, schimb valutar BNR cu fallback, plăți programate, joburi de fundal, 57 teste PASS, ~77% JaCoCo.
-- [x] **Testare Live Multi-Serviciu E2E**: Toate cele 3 microservicii testate live integrat (16/16 pași PASS).
+- [x] **`eureka-server` (Port 8761)**: Service registry Netflix Eureka, heartbeat 2s, client load balancer integrat.
+- [x] **`user-service` (Port 8081 & 8181)**: Deține `user_db` (`users`, `individuals`), autentificare JWT RS256, hashing BCrypt, endpoint public JWKS (`/.well-known/jwks.json`), chei RSA persistate partajate, 18 teste PASS, ~78% JaCoCo.
+- [x] **`account-service` (Port 8082 & 8182)**: Deține `account_db` (`accounts`, `account_access`, `cards`, `bank_limits`, `user_limits`), OAuth2 Resource Server RS256, model monetar `BigDecimal`, versionare optimistă `@Version`, client Feign către user-service, 58 teste PASS, ~73% JaCoCo.
+- [x] **`transaction-service` (Port 8083 & 8183)**: Deține `transaction_db` (`transactions`, `scheduled_payments`, `exchange_rates`, `categories`, `tags`, `transaction_tags`), OAuth2 Resource Server RS256, plăți standard și urgente, transferuri proprii, schimb valutar BNR cu fallback, plăți programate, client Feign către account-service, 65 teste PASS, ~76% JaCoCo.
+- [x] **`gateway-service` (Port 8090)**: Spring Cloud Gateway reactiv pe Netty, Resource Server OAuth2, rate limiting, CORS centralizat, propagare `X-Correlation-Id`, 13 teste PASS, ~95% JaCoCo.
+- [x] **Testare Live Multi-Serviciu E2E**: Verificare completă cu 8 procese concurente (`verify_phase6_gateway.py`).
 - [x] **Regresie Monolit**: 219 teste monolit PASS sub tag-ul git `monolith-stable`.
 
-### Pași Următori (Faza 4: Infrastructură Distribuită și Integrare)
-1. Service Discovery cu Netflix Eureka (`eureka-server` pe port 8761).
-2. API Gateway (Spring Cloud Gateway) cu rutare unificată și validare JWT.
-3. Comunicație declarativă inter-servicii cu Spring Cloud OpenFeign și load balancing.
-4. Reziliență cu Resilience4j (CircuitBreaker, Retry, RateLimiter).
-5. Tranzacții distribuite cu Saga Orchestrator și compensare automată.
-6. Observabilitate distribuită: Spring Boot Actuator, Prometheus și Grafana.
-7. Cache distribuit cu Redis.
-8. Configurație centralizată cu Spring Cloud Config Server.
-9. Containerizare completă cu Docker și orchestrare cu Docker Compose.
-
-
+### Pași Următori
+1. Reziliență cu Resilience4j (Circuit Breaker, Retry, Bulkhead).
+2. Tranzacții distribuite cu Saga Orchestrator și compensare automată.
+3. Observabilitate distribuită: Spring Boot Actuator, Prometheus și Grafana.
+4. Cache distribuit cu Redis.
+5. Configurație centralizată cu Spring Cloud Config Server.
+6. Containerizare completă cu Docker și orchestrare cu Docker Compose.
 
 ---
 
-## 9. Microservicii, Service Discovery și Load Balancing
+## 9. Microservicii, Service Discovery, Load Balancing și API Gateway
 
-Aplicația include o suită completă de microservicii distribuite, configurabile pentru scalabilitate orizontală prin **Eureka Server** și **Spring Cloud LoadBalancer**:
+Aplicația include o arhitectură de microservicii distribuită, scalabilă orizontal prin **Eureka Server**, **Spring Cloud LoadBalancer** și accesibilă prin **Spring Cloud Gateway**:
 
 1. **`eureka-server` (Port 8761):**
    - Registry centralizat pentru descoperirea automată a instanțelor.
-2. **`user-service` (Replicat: Port 8081 & 8181):**
+2. **`gateway-service` (Port 8090):**
+   - API Gateway reactiv: punct unic de intrare (`http://localhost:8090/api`), validare JWT via JWKS, rate limiting per IP, CORS.
+3. **`user-service` (Replicat: Port 8081 & 8181):**
    - Gestionare utilizatori, emitere JWT RS256, JWKS public, chei partajate.
-3. **`account-service` (Replicat: Port 8082 & 8182):**
+4. **`account-service` (Replicat: Port 8082 & 8182):**
    - OAuth2 Resource Server, gestiune conturi, carduri, limite, client Feign către user-service cu RoundRobinLoadBalancer.
-4. **`transaction-service` (Replicat: Port 8083 & 8183):**
+5. **`transaction-service` (Replicat: Port 8083 & 8183):**
    - OAuth2 Resource Server, transferuri, plăți, client Feign către account-service cu RoundRobinLoadBalancer.
 
-### Rulare și Verificare Multi-Instanță
-Pentru a porni și verifica suita completă de 7 procese (Eureka + 6 replici) demonstrând distribuția traficului Round-Robin, failover automat și fluxul de afaceri end-to-end:
+### Rulare și Verificare Live
+Pentru a porni și verifica suita completă de 8 procese (Eureka + 6 replici + Gateway) demonstrând rutarea dinamică, rate limiting (HTTP 429), load balancing prin gateway și failover automat:
 ```powershell
-python scratch/verify_phase5_load_balancing.py
+python verify_phase6_gateway.py
 ```
-Toate cele 361 de teste Java pot fi rulate prin:
+Pentru rularea suitei complete de regresie (374 teste Java pe toate cele 6 module + frontend):
 ```powershell
-python scratch/run_full_regression.py
+python run_full_regression.py
 ```

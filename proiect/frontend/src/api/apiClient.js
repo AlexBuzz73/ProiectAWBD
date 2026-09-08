@@ -1,3 +1,5 @@
+import { getLoggedUser } from '../utils/authStorage.js';
+
 export const API_BASE_URL =
     (import.meta.env?.VITE_API_BASE_URL || 'http://localhost:8080/api').replace(/\/$/, '');
 
@@ -23,8 +25,24 @@ async function getCsrfToken() {
 export async function apiFetch(url, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
     const headers = new Headers(options.headers || {});
-    if (!['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+
+    // Attach JWT Bearer token if logged in with JWT
+    let token = null;
+    try {
+        const loggedUser = getLoggedUser();
+        token = loggedUser?.token || loggedUser?.accessToken || null;
+    } catch {
+        // Ignore localStorage access errors
+    }
+
+    if (token && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    // Monolith session auth uses CSRF for unsafe methods when no JWT token is present
+    if (!token && !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
         headers.set('X-XSRF-TOKEN', await getCsrfToken());
     }
+
     return fetch(url, { ...options, method, headers, credentials: 'include' });
 }

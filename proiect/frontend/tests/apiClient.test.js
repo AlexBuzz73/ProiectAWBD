@@ -31,3 +31,30 @@ test('403 is returned without replaying a mutation', async (t) => {
     assert.equal(response.status, 403);
     assert.equal(mutations, 1);
 });
+
+test('JWT Bearer token is attached when present in storage, skipping CSRF', async (t) => {
+    const calls = [];
+    t.mock.method(globalThis, 'fetch', async (url, options) => {
+        calls.push({ url, options });
+        return new Response('{}');
+    });
+
+    // Mock localStorage
+    const originalLocalStorage = globalThis.localStorage;
+    globalThis.localStorage = {
+        getItem: (key) => key === 'loggedUser' ? JSON.stringify({ token: 'jwt.mock.token' }) : null,
+        setItem: () => {},
+        removeItem: () => {}
+    };
+
+    try {
+        const response = await apiFetch('http://localhost:8090/api/accounts', { method: 'POST' });
+        assert.equal(response.status, 200);
+        // Only 1 call because CSRF is skipped when JWT is present
+        assert.equal(calls.length, 1);
+        assert.equal(calls[0].options.headers.get('Authorization'), 'Bearer jwt.mock.token');
+        assert.equal(calls[0].options.headers.get('X-XSRF-TOKEN'), null);
+    } finally {
+        globalThis.localStorage = originalLocalStorage;
+    }
+});

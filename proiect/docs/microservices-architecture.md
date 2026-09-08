@@ -132,6 +132,55 @@ flowchart TD
 | **`user-service`** | 18 PASS | 77.95% | Emitere JWT RS256, egalitate JWKS între replici, verificare semnătură cross-instanță |
 | **`account-service`** | 58 PASS | 73.44% | Resource Server OAuth2, RoundRobinLoadBalancer test, InternalAccountController, InstanceIdFilter |
 | **`transaction-service`** | 65 PASS | 75.67% | Resource Server OAuth2, transferuri inter-conturi, client Feign către conturi, LoadBalancer test |
-| **TOTAL** | **361 PASS** | **> 70% per modul** | **Zero eșecuri, zero erori** |
+| **`gateway-service`** | 13 PASS | 94.90% | API Gateway reactiv, OAuth2 Resource Server, Rate Limiting (429), CORS, Correlation ID |
+| **TOTAL** | **374 PASS** | **> 70% per modul** | **Zero eșecuri, zero erori** |
 
-Scriptul de verificare live completă: `scratch/verify_phase5_load_balancing.py`.
+---
+
+## 4. API Gateway (`gateway-service` :8090)
+
+Modulul `gateway-service` oferă o poartă unică de acces pentru clienți și frontend, implementat folosind **Spring Cloud Gateway WebFlux** pe un stack reactiv non-blocant bazat pe Netty:
+
+```
+[ Frontend:5173 / Postman / Clienti ]
+                  |
+                  v  (HTTP:8090)
+       +--------------------+
+       |  gateway-service   |
+       |  - JWT Validation  |
+       |  - Rate Limiting   |
+       |  - Centralized CORS|
+       |  - Correlation ID  |
+       +---------+----------+
+                 |
+        +--------+--------+
+        |  Eureka:8761    |  (Service Discovery: lb://)
+        +--------+--------+
+                 |
+   +-------------+-------------+
+   |             |             |
+   v             v             v
+[user-serv]  [account-serv]  [transaction-serv]
+(:8081/:8181) (:8082/:8182)   (:8083/:8183)
+```
+
+### Funcționalități Cheie
+1. **Rutare Dinamică fără URL-uri hardcodate (`GatewayRoutesConfig`):**
+   - Rutele sunt definite utilizând URI-uri `lb://<service-name>`, fiind rezolvate dinamic prin Eureka și distribuite prin Round-Robin Load Balancer.
+   - Rutele `/api/admin/**` sunt mapate explicit către serviciul deținător (`lb://user-service` pentru utilizatori, `lb://account-service` pentru conturi și limite).
+2. **Securitate Centralizată Reactivă (`SecurityConfig`):**
+   - Validează semnătura token-urilor Bearer JWT RS256 folosind setul de chei publice JWKS (`/.well-known/jwks.json`).
+   - Respinge cererile neautentificate cu **HTTP 401 Unauthorized** și utilizatorii fără rolul `ADMIN` cu **HTTP 403 Forbidden**.
+   - Propagă neschimbat antetul `Authorization: Bearer <token>` către serviciile interne pentru validare defense-in-depth.
+3. **Rate Limiting In-Memory (`RateLimiterGatewayFilterFactory`, `InMemoryRateLimiter`):**
+   - Algoritm Token Bucket thread-safe configurabil per rută (10 cereri/refill 2s pe login/register; 15 cereri/refill 5s pe plăți).
+   - Respinge atacurile brute-force sau suprasolicitarea cu **HTTP 429 Too Many Requests** și antetul `Retry-After`.
+4. **Trasabilitate Distribuită (`CorrelationIdGlobalFilter`):**
+   - Generează sau propagă `X-Correlation-Id` pe toate cererile și răspunsurile HTTP.
+   - Adaugă antetul `X-Gateway-Service: gateway-service` pentru auditabilitate.
+5. **CORS Centralizat (`CorsConfig`):**
+   - Configurează antetele CORS pentru originea frontend Vite `http://localhost:5173` cu suport complet pentru credențiale și antete expuse.
+
+Scriptul de verificare live completă cu 8 procese: `verify_phase6_gateway.py`.
+Scriptul de regresie completă a tuturor modulelor: `run_full_regression.py`.
+

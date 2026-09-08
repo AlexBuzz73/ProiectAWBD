@@ -1,8 +1,8 @@
 # PROJECT_PROGRESS
 
-Actualizat: 2026-09-08. Etapa curentă: **Faza 5 – Load Balancing și Scalabilitate finalizată cu succes**. Monolitul rămâne 100% stabil și funcțional (tag git: `monolith-stable`, 219 teste Java PASS).
-Total teste Java active în întreg repo: **361 teste PASS** (Monolit: 219, Eureka Server: 1, user-service: 18, account-service: 58, transaction-service: 65). Toate modulele depășesc pragul de 70% acoperire JaCoCo.
-Toate cele 3 microservicii rulează scalat orizontal în regim multi-instanță (minim 2 replici active per microserviciu, 6 instanțe de business înregistrate dinamic în Eureka Server 8761). Distribuția traficului inter-servicii este gestionată nativ prin Spring Cloud LoadBalancer (Round-Robin pe clienții Feign). Persistența identității de semnare JWT RS256 este partajată și protejată concurențial, iar baza de date este partajată semantic per domeniu de date.
+Actualizat: 2026-09-08. Etapa curentă: **Faza 6 – API Gateway finalizată cu succes**. Monolitul rămâne 100% stabil și funcțional (tag git: `monolith-stable`, 219 teste Java PASS).
+Total teste Java active în întreg repo: **374 teste PASS** (Monolit: 219, Eureka Server: 1, user-service: 18, account-service: 58, transaction-service: 65, gateway-service: 13). Toate modulele depășesc pragul de 70% acoperire JaCoCo (Gateway: 94.90%).
+Toate cele 3 microservicii rulează scalat orizontal în regim multi-instanță (minim 2 replici active per microserviciu, 6 instanțe de business înregistrate dinamic în Eureka Server 8761), iar întreg traficul extern trece exclusiv prin **`gateway-service` (Port 8090)**. API Gateway oferă un punct unic de intrare pentru clienți și frontend, rutare dinamică bazată pe Service Discovery (`lb://`), validare distribuită a token-urilor JWT RS256 via JWKS, RBAC la nivel de gateway (`ROLE_ADMIN`), rate limiting in-memory per IP (HTTP 429), CORS centralizat și propagare automată a `X-Correlation-Id`.
 
 ## Checklist
 
@@ -21,7 +21,7 @@ Toate cele 3 microservicii rulează scalat orizontal în regim multi-instanță 
 - [x] Eureka
 - [x] OpenFeign
 - [x] JWT/distributed security (emitere RS256 in user-service, validare JWKS in account-service & transaction-service, propagare automata Bearer token prin Feign RequestInterceptor)
-- [ ] Gateway
+- [x] Gateway
 - [x] Load balancing (multi-instance) (Spring Cloud LoadBalancer RoundRobin, 6 replici active, persistență chei RSA partajate, failover verificat)
 - [ ] Resilience4j
 - [ ] Actuator (integrat pe toate serviciile; urmeaza metrici avansate Prometheus)
@@ -268,3 +268,87 @@ Fiecare replică își declară un identificator unic în Eureka: `eureka.instan
     6. Inițiere transfer 300 RON prin Replică A (`transaction-service:8083`) către `account-service` prin Feign + LoadBalancer.
     7. Verificare solduri actualizate pe Replică B (`account-service:8182`): Cont 1 = 1200 RON, Cont 2 = 800 RON.
   - Oprire curată a tuturor proceselor.
+
+---
+
+## Faza 6 – Spring Cloud API Gateway (finalizată)
+
+Data finalizării: 2026-09-08.
+S-a implementat și verificat complet cerința de **API Gateway** din barem folosind **Spring Cloud Gateway WebFlux** (`spring-cloud-starter-gateway-server-webflux`, Spring Cloud 2025.1.3 / Oakwood), integrat cu Spring Security WebFlux (OAuth2 Resource Server), Spring Cloud Netflix Eureka Client și Spring Cloud LoadBalancer.
+
+### 1. Componente Implementate
+
+1. **Modulul `gateway-service` (Port 8090):**
+   - Modul Gradle independent (`proiect/gateway-service/`) cu `build.gradle`, `settings.gradle` și wrapper propriu.
+   - Stack complet reactiv (Spring WebFlux + Netty, fără servlete blocante).
+   - Înregistrat ca Eureka Client (`GATEWAY-SERVICE`).
+
+2. **Rutare Dinamică Centralizată (`GatewayRoutesConfig`):**
+   - Rutare automată bazată pe Service Discovery folosind prefixul `lb://<service-name>`:
+     - `/api/auth/**`, `/.well-known/jwks.json`, `/api/users/**` -> `lb://user-service`
+     - `/api/accounts/**`, `/api/limits/**` -> `lb://account-service`
+     - `/api/transactions/**`, `/api/payments/**`, `/api/categories/**`, `/api/tags/**` -> `lb://transaction-service`
+   - Rutare explicită, fără coliziuni, pentru rutele administrative:
+     - `/api/admin/users/**`, `/api/admin/unlock-user` -> `lb://user-service`
+     - `/api/admin/accounts/**`, `/api/admin/bank-limits/**`, `/api/admin/create-shared-account` -> `lb://account-service`
+
+3. **Securitate Distribuită la Nivel de Gateway (`SecurityConfig`):**
+   - Resource Server reactiv bazat pe JWT RS256 (`NimbusReactiveJwtDecoder` conectat la JWKS `http://localhost:8081/.well-known/jwks.json`).
+   - Endpoint-uri publice permise fără autentificare: `/actuator/**`, `/api/auth/**`, `/.well-known/jwks.json`, `OPTIONS /**`.
+   - Endpoint-uri administrative protejate strict: `/api/admin/**` necesită `ROLE_ADMIN` (extrase din claim-ul `role`).
+   - Răspunsuri standardizate JSON: HTTP 401 Unauthorized (`AuthenticationEntryPoint`) și HTTP 403 Forbidden (`ServerAccessDeniedHandler`).
+   - Propagare automată și neatinsă a antetului `Authorization: Bearer <token>` către microserviciile downstream (Defense-in-depth: microserviciile continuă să valideze independent token-urile).
+
+4. **Rate Limiting In-Memory per IP (`InMemoryRateLimiter`, `RateLimiterGatewayFilterFactory`):**
+   - Algoritm Token Bucket thread-safe fără dependențe externe.
+   - Aplicat pe rute sensibile:
+     - `/api/auth/login`: capacitate 10 token-uri, refill 2.0 token-uri/secundă.
+     - `/api/auth/register`: capacitate 10 token-uri, refill 5.0 token-uri/secundă.
+     - `/api/payments/**`: capacitate 15 token-uri, refill 5.0 token-uri/secundă.
+   - Returnează HTTP 429 Too Many Requests cu antet `Retry-After: <seconds>` și corp JSON explicativ.
+
+5. **Trasabilitate & Observabilitate (`CorrelationIdGlobalFilter`):**
+   - Implementează `WebFilter` și `GlobalFilter` cu prioritate maximă (`Ordered.HIGHEST_PRECEDENCE`).
+   - Generează un UUID nou dacă antetul `X-Correlation-Id` lipsește, sau propagă valoarea existentă trimisă de client.
+   - Injectează antetele `X-Correlation-Id` și `X-Gateway-Service: gateway-service` în toate răspunsurile HTTP (inclusiv erori 401/403).
+   - Logging structurat per cerere (metodă, cale, correlation ID, status HTTP, durată în ms).
+
+6. **CORS Centralizat pentru Frontend (`CorsConfig`):**
+   - `CorsWebFilter` cu `Ordered.HIGHEST_PRECEDENCE`.
+   - Permite originile Vite `http://localhost:5173` și `http://127.0.0.1:5173`.
+   - Permite toate metodele (`GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD`) și antetele cu `allowCredentials(true)`.
+   - Expune antetele: `X-Correlation-Id`, `X-Gateway-Service`, `X-Instance-Id`, `X-Service-Port`, `Retry-After`.
+
+7. **Integrare Frontend (`apiClient.js`):**
+   - Suport nativ pentru Bearer token JWT extras din starea locală de autentificare (`getLoggedUser()`).
+   - Ignorare automată CSRF la utilizarea JWT (CSRF rămâne activ doar pentru sesiunile monolitului).
+   - Fișiere de configurare create: `.env.microservices` și `.env.example` indicând `VITE_API_BASE_URL=http://localhost:8090/api`.
+
+### 2. Rezultate Teste și Verificare Live
+
+- **Suită de Teste Automate (374 teste Java PASS, JaCoCo > 70% peste tot):**
+  - **Monolit:** 219 teste PASS (JaCoCo: 77.16%)
+  - **`eureka-server`:** 1 test PASS
+  - **`user-service`:** 18 teste PASS (JaCoCo: 77.95%)
+  - **`account-service`:** 58 teste PASS (JaCoCo: 73.44%)
+  - **`transaction-service`:** 65 teste PASS (JaCoCo: 75.67%)
+  - **`gateway-service`:** **13 teste PASS, 0 failures, 0 skipped** (**JaCoCo: 94.90%**)
+  - **Frontend:** 6 teste unitare PASS, ESLint curat, Vite build cu succes.
+- **Verificare Live End-to-End (`verify_phase6_gateway.py`):**
+  - Rulare live cu 8 procese: Eureka (8761), 2x User (8081, 8181), 2x Account (8082, 8182), 2x Transaction (8083, 8183), Gateway (8090).
+  - Toate cele 7 instanțe raportate `UP` în Eureka (`USER: 2/2, ACCOUNT: 2/2, TX: 2/2, GATEWAY: 1/1`).
+  - **Securitate 401:** Cererea neautentificată la `/api/accounts` respinsă cu 401, primind `X-Correlation-Id` și `X-Gateway-Service: gateway-service`.
+  - **Securitate JWT invalid:** Cererea cu token invalid respinsă cu 401.
+  - **Rutare JWKS:** `GET http://localhost:8090/.well-known/jwks.json` returnează setul de chei publice (`kid=user-service-rsa-key-1`).
+  - **CORS Preflight:** `OPTIONS http://localhost:8090/api/accounts` returnează HTTP 200 cu `Access-Control-Allow-Origin: http://localhost:5173` și `Access-Control-Allow-Credentials: true`.
+  - **Înregistrare și Login:** Înregistrare la `POST http://localhost:8090/api/auth/register` (201 Created) și autentificare la `POST http://localhost:8090/api/auth/login` (200 OK) generând JWT valid.
+  - **Autorizare RBAC 403:** Utilizatorul cu rol `USER` accesând `/api/admin/users/all` prin Gateway primește HTTP 403 Forbidden.
+  - **Rate Limiting 429:** Rafala de 15 cereri rapide la `/api/auth/login` a declanșat HTTP 429 Too Many Requests cu antet `Retry-After: 1`.
+  - **Acces Protejat prin Gateway:** `GET http://localhost:8090/api/accounts` cu Bearer token returnează HTTP 200 OK.
+  - **Load Balancing prin Gateway (`user-service`):** 12 cereri la `/api/users/me` distribuite alternant între porturile 8081 și 8181.
+  - **Load Balancing prin Gateway (`account-service`):** 12 cereri la `/api/accounts` distribuite alternant între porturile 8082 și 8182.
+  - **Failover Transparent prin Gateway:** Oprirea forțată a replicii `account-service:8082`; Gateway-ul a redirecționat automat tot traficul către replica `8182` fără repornirea gateway-ului.
+  - **Propagare Correlation ID:** Clientul trimite `X-Correlation-Id: custom-client-trace-998877`; valoarea este păstrată și returnată în răspunsul final.
+  - **Rutare Transaction Service:** `GET http://localhost:8090/api/categories` rutat cu succes (HTTP 200).
+  - Oprire curată a tuturor celor 8 procese.
+
