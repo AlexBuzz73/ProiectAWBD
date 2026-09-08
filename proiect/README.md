@@ -25,6 +25,7 @@ O aplicație web completă de tip Internet Banking destinată persoanelor fizice
 8. [Stadiul Proiectului și Pași Următori](#8-stadiul-proiectului-și-pași-următori)
 9. [Microservicii, Discovery, Gateway și Reziliență](#9-microservicii-service-discovery-load-balancing-gateway-și-resilience4j)
 10. [Design Pattern — Strangler Fig](#10-design-pattern--strangler-fig)
+11. [AI Agents Used During Development](#11-ai-agents-used-during-development)
 
 ---
 
@@ -429,6 +430,8 @@ Scenariile E2E acoperite:
 - [x] **`transaction-service` (Port 8083 & 8183)**: Deține `transaction_db` (`transactions`, `scheduled_payments`, `exchange_rates`, `categories`, `tags`, `transaction_tags`), OAuth2 Resource Server RS256, plăți standard și urgente, transferuri proprii, schimb valutar BNR cu fallback, plăți programate, client Feign către account-service cu Resilience4j CB + Retry (fără retry la debit/credit), 74 teste PASS, ~77% JaCoCo.
 - [x] **`gateway-service` (Port 8090)**: Spring Cloud Gateway reactiv pe Netty, Resource Server OAuth2, rate limiting, CORS centralizat, propagare `X-Correlation-Id`, 13 teste PASS, ~95% JaCoCo.
 - [x] **Resilience4j Fault Tolerance**: Protecție bidirecțională, failover pe replici, fail-fast (<15ms) și fallbacks controlate HTTP 503.
+- [x] **Design Pattern: Strangler Fig**: Migrare arhitecturală incrementală din monolit către microservicii cu Strangler Facade (API Gateway).
+- [x] **Bonus AI Agents — Development**: Utilizare factuală a asistenților AI în dezvoltare, testare, audit IDOR/CSRF și validare umană continuă.
 - [x] **Testare Live Multi-Serviciu E2E**: Verificare completă demonstrată prin scripturile dedicate (`verify_phase7_resilience.py`).
 - [x] **Regresie Monolit**: 219 teste monolit PASS sub tag-ul git `monolith-stable`.
 
@@ -553,4 +556,54 @@ Frontend:5173
 - **Coexistența a două paradigme de securitate:** Monolitul funcționează cu sesiune DB și cookie-uri CSRF, iar microserviciile cu token-uri JWT RS256 stateless.
 - **Complexitate operațională temporară:** Necesitatea rulării concurente a instanțelor pe durata testelor live.
 - **Sincronizarea contractelor API:** Menținerea riguroasă a compatibilității schemelor JSON și a codurilor HTTP.
+
+---
+
+## 11. AI Agents Used During Development
+
+Această secțiune documentează în mod factual și transparent utilizarea asistenților și agenților AI (OpenAI Codex, GitHub Copilot, Antigravity AI) pe parcursul dezvoltării proiectului, respectând principiile de utilizare responsabilă și validare umană riguroasă (*Human-in-the-Loop*).
+
+### 11.1. Utilizarea Reală a AI în Proiect
+Agenții AI au fost utilizați ca instrumente de pair programming, audit și accelerare a ciclului de dezvoltare în următoarele arii specifice:
+- **Analiza statică a repository-ului:** Maparea structurii inițiale a monolitului, identificarea relațiilor dintre entități JPA și auditarea configurațiilor de securitate.
+- **Identificarea problemelor de securitate (CSRF & IDOR):** Scanarea controller-elor pentru depistarea punctelor vulnerabile unde identificatorul utilizatorului (`userId`) era acceptat din cererea HTTP în loc să fie derivat din contextul de securitate autentificat.
+- **Creșterea acoperirii de testare (JaCoCo $\ge$ 70%):** Generarea de cazuri de testare unitare și de integrare pentru scenarii edge (ex: validări de sold negativ, conversii valutare, depășiri de limite bancare).
+- **Extragerea incrementală a microserviciilor (Strangler Fig):** Suport la decuplarea claselor din monolit și crearea proiectelor Gradle independente (`user-service`, `account-service`, `transaction-service`).
+- **Configurarea componentelor de infrastructură distribuită:** Asistență la crearea și optimizarea fișierelor de configurare pentru Eureka Server, OpenFeign declarative clients, Spring Cloud LoadBalancer, Spring Cloud Gateway și Resilience4j Circuit Breaker / Retry.
+- **Menținerea siguranței împotriva regresiilor:** Crearea și adaptarea scripturilor automate de regresie (`run_full_regression.py`) și verificare live multi-serviciu (`verify_phase7_resilience.py`).
+- **Sincronizarea documentației:** Generarea de diagrame Mermaid și actualizarea continuă a documentelor de progres și arhitectură.
+
+### 11.2. Human Review and Validation (Validare Umană Riguroasă)
+Codul sau configurațiile sugerate de agenții AI **nu au fost niciodată integrate direct sau acceptate orbește**. Fiecare propunere a trecut printr-un proces riguros de verificare umană și validare automată prin unelte deterministe:
+1. **Suite de Teste Automate (391 teste Java PASS):** Fiecare modificare de cod a fost validată prin rularea testelor unitare și de integrare JUnit 5 / MockMvc / Mockito.
+2. **Prag de Acoperire JaCoCo:** Toate modulele au fost configurate să raporteze acoperirea instrucțiunilor prin JaCoCo, asigurând depășirea pragului minim impus de 70% (Gateway: 94.90%, User: 77.95%, Transaction: 77.08%, Monolit: 77.16%, Account: 75.46%).
+3. **Validare E2E și Frontend:** Testele Playwright și runner-ul nativ Node.js au validat funcționalitatea interfeței React și fluxul complet de autentificare.
+4. **Analiză Statică & Linting:** Rularea regulilor ESLint pe frontend și a controalelor de compilare pe backend pentru prevenirea warning-urilor și anti-pattern-urilor.
+5. **Verificare Live Multi-Serviciu:** Rularea scripturilor Python care pornesc concurent procesele reale (Eureka, Gateway, 6 replici) și verifică scenarii complexe de rețea, failover și injectare de erori.
+6. **Validare Manuală HTTP & Git History:** Testare manuală a endpoint-urilor REST prin cURL/Postman și păstrarea unui istoric curat de commit-uri etapizate.
+
+### 11.3. Beneficii Concrete
+- **Dezvoltare Accelerată:** Reducerea timpului necesar pentru scrierea de cod boilerplate (DTO-uri, controllere CRUD, configurări Spring standard).
+- **Descoperirea Rapidă a Vulnerabilităților:** Semnalarea din timp a riscurilor de IDOR și configurărilor greșite de CSRF.
+- **Generarea Scenariilor Limită:** Identificarea unor cazuri edge în logica de business (ex: concurență pe solduri, conturi partajate cu roluri diferite).
+- **Eficiență în Debugging:** Diagnosticarea rapidă a erorilor de deserializare JSON (ex: mapare primitive vs wrappers, adnotări `@JsonIgnoreProperties`).
+- **Suport în Arhitectură și Refactoring:** Planificarea pașilor de migrare Strangler Fig fără ruperea suitei de 219 teste a monolitului.
+
+### 11.4. Limitări și Utilizare Responsabilă
+Utilizarea responsabilă a AI impune recunoașterea limitărilor sale obiective:
+- **Risc de Halucinare / Cod Incorect:** Modelele AI pot genera metode inexistente sau pot propune logici de business defectuoase dacă nu sunt ghidate de specificații stricte.
+- **Incompatibilități de Versiuni:** Agenții AI pot sugera dependențe învechite (de exemplu, sugerarea `spring-boot-starter-aop` care a fost reorganizat în `spring-boot-starter-aspectj` în Spring Boot 4 / Spring 7), necesitând intervenția umană pentru alinierea la BOM-ul curent.
+- **Risc de Securitate:** AI-ul poate recomanda soluții simpliste care dezactivează protecții (ex: `csrf.disable()` sau `permitAll()`); inginerul uman a impus protecția strictă pe baza rolurilor și a token-urilor JWKS.
+- **Necesitatea Verificării Deterministe:** În domeniul bancar, siguranța tranzacțiilor financiare nu poate fi lăsată pe seama unor presupuneri statistice; reguli precum *zero-retry pe mutări monetare* au fost impuse explicit de inginerul uman ca invariant absolut de siguranță.
+
+### 11.5. Exemple Concrete din Proiect
+
+1. **Exemplu de Securitate (Audit IDOR):**
+   > *"AI-assisted security audit identified that controllers trusted a client-provided userId, creating an IDOR risk. The implementation was then changed to derive identity from the authenticated Spring Security context/JWT and validated through cross-user authorization tests."*
+   În controllerele monolitului și ale microserviciilor, apelurile acceptau inițial `@PathVariable Integer userId`. În urma analizei asistate de AI, s-a implementat `CurrentUserService` și `ResourceAuthorizationService`, forțând extragerea identității din sesiunea/JWT-ul autentificat și respingerea cu HTTP 403 a accesului la resursele altui utilizator.
+
+2. **Exemplu de Arhitectură (Migrare Strangler Fig):**
+   > *"AI-assisted incremental migration helped separate the monolith into user-service, account-service and transaction-service while maintaining the monolith as a regression baseline."*
+   Prin ghidarea pașilor de migrare, fiecare domeniu a fost decuplat în ordine (`user-service` -> `account-service` -> `transaction-service`), menținând în permanență tag-ul `monolith-stable` cu toate cele 219 teste funcționale ca dovadă că noua arhitectură nu a introdus regresii.
+
 

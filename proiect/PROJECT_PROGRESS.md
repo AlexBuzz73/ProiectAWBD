@@ -1,8 +1,8 @@
 # PROJECT_PROGRESS
 
-Actualizat: 2026-09-08. Etapa curentă: **Faza 8 – Design Pattern: Strangler Fig finalizată cu succes**. Monolitul rămâne 100% stabil și funcțional (tag git: `monolith-stable`, 219 teste Java PASS).
+Actualizat: 2026-09-08. Etapa curentă: **Faza 9 – Bonus AI Agents in Development finalizată cu succes**. Monolitul rămâne 100% stabil și funcțional (tag git: `monolith-stable`, 219 teste Java PASS).
 Total teste Java active în întreg repo: **391 teste PASS** (Monolit: 219, Eureka Server: 1, user-service: 18, account-service: 66, transaction-service: 74, gateway-service: 13). Toate modulele depășesc pragul de 70% acoperire JaCoCo (Gateway: 94.90%, User: 77.95%, Transaction: 77.08%, Monolit: 77.16%, Account: 75.46%).
-Proiectul demonstrează implementarea completă a **Strangler Fig Pattern** prin migrarea incrementală a domeniilor de business din monolit în microservicii independente (`user-service`, `account-service`, `transaction-service`), dirijate transparent prin `gateway-service` (Strangler Facade pe Port 8090) și protejate prin Resilience4j. Monolitul original este menținut funcțional și testabil.
+Proiectul include documentarea transparentă a utilizării asistenților AI în procesul de dezvoltare, testare și audit de securitate, cu validare umană riguroasă prin 391 teste automate, acoperire JaCoCo și verificări live. Arhitectura aplică Strangler Fig Pattern și Resilience4j.
 
 ## Checklist
 
@@ -26,6 +26,7 @@ Proiectul demonstrează implementarea completă a **Strangler Fig Pattern** prin
 - [x] Resilience4j (Circuit Breaker, Retry safe-reads, Fallbacks 503, Fail-Fast <50ms, Invariant Siguranță Financiară)
 - [x] Actuator (integrat pe toate serviciile: health, info, circuitbreakers, circuitbreakerevents, retries, retryevents)
 - [x] Design Pattern — Strangler Fig (Strangler Fig Pattern implemented and demonstrated through incremental migration from the stable monolith to three independently deployable business microservices.)
+- [x] AI Agents — Development (Factual use of AI agents for repository analysis, IDOR/CSRF detection, test generation, Strangler Fig migration, and architecture verification with strict human oversight)
 - [ ] Prometheus
 - [ ] Grafana
 - [ ] Redis
@@ -519,6 +520,35 @@ Frontend:5173
   - Coexistența a două paradigme arhitecturale (monolit monolitic cu sesiune DB vs microservicii stateless cu JWT).
   - Necesitatea sincronizării contractelor de date (DTO-uri, formate JSON) între monolit și noile servicii.
   - Complexitate operațională crescută pe durata migrației (rulare concurentă de multiple procese).
+
+---
+
+## Faza 9 – Bonus AI Agents in Development (finalizată)
+
+Data finalizării: 2026-09-08.
+S-a documentat în mod transparent, factual și exhaustiv folosirea asistenților AI în procesul de dezvoltare al proiectului, subliniind controlul uman strict (*Human Oversight*), beneficiile obținute, limitările identificate și exemplele concrete din codebase.
+
+### 1. Utilizarea Reală a AI
+- **Scanare Statică și Audit Securitate:** Depistarea automată a controller-elor unde parametrul `userId` era citit direct din `@PathVariable` în loc să fie validat din `Authentication` / JWT (remediat prin `CurrentUserService` și `ResourceAuthorizationService`).
+- **Generare și Adaptare Teste:** Propunerea scenariilor de testare pentru edge cases financiare (solduri negative, parități de schimb, limite bancare, teste de reziliență CircuitBreaker / Retry).
+- **Asistență Arhitecturală Strangler Fig:** Ghidarea pașilor de decuplare a domeniilor `user-service`, `account-service` și `transaction-service`, asigurând în permanență conservarea neschimbată a monolitului ca baseline (`monolith-stable`).
+- **Integrare Infrastructură Spring Cloud:** Sprijin în configurarea Eureka Server, LoadBalancer, OpenFeign declarative clients, Gateway (WebFlux / Netty) și Resilience4j.
+- **Sincronizare Documentație și Diagrame:** Generarea automată a diagramelor Mermaid și a rapoartelor de progres.
+
+### 2. Human Review and Validation (Supraveghere Umană Strictă)
+- Nicio linie de cod propusă de AI nu a fost acceptată fără verificare umană și validare automată.
+- **Mecanisme de Validare Deterministe:**
+  - 391 teste Java PASS (219 Monolit, 1 Eureka, 18 User, 66 Account, 74 Transaction, 13 Gateway).
+  - Acoperire JaCoCo verificată la fiecare etapă ($\ge 70\%$ pe toate modulele, Gateway: 94.90%).
+  - Teste Playwright E2E și ESLint pe frontend.
+  - Testare live multi-serviciu cu scenarii de defectare forțată a proceselor (`verify_phase7_resilience.py`).
+
+### 3. Exemple Concrete
+1. **Securitate (Audit IDOR):**
+   > *"AI-assisted security audit identified that controllers trusted a client-provided userId, creating an IDOR risk. The implementation was then changed to derive identity from the authenticated Spring Security context/JWT and validated through cross-user authorization tests."*
+2. **Arhitectură (Migrare Strangler Fig):**
+   > *"AI-assisted incremental migration helped separate the monolith into user-service, account-service and transaction-service while maintaining the monolith as a regression baseline."*
+
 
 
 
