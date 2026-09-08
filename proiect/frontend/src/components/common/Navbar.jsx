@@ -9,12 +9,13 @@ function Navbar() {
     const [logoutError, setLogoutError] = useState("");
 
     const handleLogout = async () => {
-        try{
+        try {
             await logoutUser();
-            removeLoggedUser();
-            navigate("/login", { replace:true });
         } catch (error) {
             setLogoutError(error.message);
+        } finally {
+            removeLoggedUser();
+            navigate("/login", { replace: true });
         }
     };
 

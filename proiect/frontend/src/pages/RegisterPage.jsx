@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getLoggedUser } from "../utils/authStorage.js";
 import IndividualRegistrationForm from "../components/auth/IndividualRegistrationForm.jsx";
 import UserRegistrationForm from "../components/auth/UserRegistrationForm.jsx";
 import { registerUser, validateIndividual } from "../api/authApi.js";
@@ -13,19 +12,6 @@ function RegisterPage() {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const user = getLoggedUser();
-
-        if (!user) {
-            return;
-        }
-
-        if (user.role === "ADMIN") {
-            navigate("/admin/dashboard");
-        } else {
-            navigate("/dashboard");
-        }
-    }, [navigate]);
 
     const handleIndividualSubmit = async (formData) => {
         setLoading(true);
