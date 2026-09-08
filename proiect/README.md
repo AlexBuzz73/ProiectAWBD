@@ -23,6 +23,8 @@ O aplicație web completă de tip Internet Banking destinată persoanelor fizice
    - [Teste End-to-End (Playwright)](#teste-end-to-end-playwright)
 7. [Metrici de Testare și Raport JaCoCo](#7-metrici-de-testare-și-raport-jacoco)
 8. [Stadiul Proiectului și Pași Următori](#8-stadiul-proiectului-și-pași-următori)
+9. [Microservicii, Discovery, Gateway și Reziliență](#9-microservicii-service-discovery-load-balancing-gateway-și-resilience4j)
+10. [Design Pattern — Strangler Fig](#10-design-pattern--strangler-fig)
 
 ---
 
@@ -463,3 +465,92 @@ Pentru rularea suitei complete de regresie (391 teste Java pe toate cele 6 modul
 ```powershell
 python run_full_regression.py
 ```
+
+---
+
+## 10. Design Pattern: Strangler Fig
+
+Proiectul implementează în mod formal modelul de design **Strangler Fig Pattern** (Martin Fowler) pentru migrarea graduală și controlată a sistemului bancar dintr-o arhitectură monolitică într-o arhitectură de microservicii decuplate.
+
+### Problema
+- Aplicația a debutat ca un monolit robust cu 12 entități JPA, bază de date partajată, securitate pe bază de sesiune DB și 219 teste Java PASS.
+- O rescriere completă de tip "Big-Bang" ar fi implicat riscuri majore: instabilitate prelungită, regresii ascunse, downtime operațional ridicat și imposibilitatea de a valida incremental funcționalitățile în producție.
+
+### Soluția Implementată
+- **Conservarea Monolitului:** Monolitul original a fost păstrat intact și funcțional ca plasă de siguranță, marcat prin tag-ul git `monolith-stable` (`76647b8`).
+- **Extragere Incrementală pe Bounded Contexts:**
+  1. `user-service` extras primul (gestiune utilizatori, profiluri, autentificare JWT RS256, JWKS public, `user_db`).
+  2. `account-service` extras ulterior (conturi, carduri, limite, Resource Server OAuth2, `account_db`, client Feign către utilizatori).
+  3. `transaction-service` extras ulterior (tranzacții, transferuri, plăți, schimb valutar, `transaction_db`, client Feign către conturi).
+- **Strangler Facade (API Gateway):**
+  - Modulul `gateway-service` (Port 8090) funcționează ca noul punct unic de intrare pentru clienți și frontend, interceptând cererile și rutându-le dinamic către microserviciile corespunzătoare (`lb://`).
+  - Monolitul poate fi decomisionat treptat fără niciun impact asupra clienților externi.
+
+### Diagramă Arhitecturală de Migrare
+
+```
+FAZA INIȚIALĂ (Baseline Monolit)
+
+Frontend:5173
+      |
+      v
+  Monolith (port 8080)
+      |
+      v
+  Monolith DB (H2/MySQL)
+
+
+MIGRARE INCREMENTALĂ (Strangler Fig Facade)
+
+                      +-----------------> user-service (:8081/:8181) [user_db]
+                      |
+Frontend -> Gateway --+-----------------> account-service (:8082/:8182) [account_db]
+            (:8090)   |
+                      +-----------------> transaction-service (:8083/:8183) [tx_db]
+
+Monolith (tag: monolith-stable, 219 teste PASS)
+   |
+   +--> Păstrat ca referință stabilă și validare de paritate funcțională
+
+
+ȚINTĂ FINALĂ (Decomisionare Monolit)
+
+Frontend:5173
+      |
+      v
+  Gateway (:8090)
+      +---> user-service (independent)
+      +---> account-service (independent)
+      +---> transaction-service (independent)
+
+  (Monolitul legacy poate fi retras fără downtime)
+```
+
+### Dovezi Concrete din Repository
+- **Tag git `monolith-stable` (`76647b8`):** Marchează starea inițială stabilă a monolitului.
+- **219 teste Java Monolit PASS:** Suita de teste a monolitului continuă să treacă la fiecare rulare (`run_full_regression.py`), dovedind că nucleul original nu a fost deteriorat.
+- **Independență Deplină per Microserviciu:** Fiecare serviciu deține propriul `build.gradle`, schema de date proprie (`user_db`, `account_db`, `transaction_db`) și suita proprie de teste.
+- **Istoric de commit-uri etapizat:**
+  - `76647b8`: `monolith-stable` (baseline monolit stabil)
+  - `a04782a` & `e1eb02a`: Extragere `user-service`
+  - `26603d1` & `8d48491`: Extragere `account-service`
+  - `ba2a01e`: Extragere `transaction-service`
+  - `d5df06e`: Integrare Eureka Server + OpenFeign
+  - `ca9689d`: Replicare multi-instanță și Load Balancing
+  - `b6e72a3`: Creare `gateway-service` (Strangler Facade)
+  - `3ff8a8c`: Reziliență Resilience4j (Circuit Breaker & Fallback 503)
+- **Codul monolitului nu a fost șters prematur:** Structura din `src/main/java` coexistă armonios cu directoarele noilor microservicii.
+
+### Justificare
+- **Risc minim:** Fiecare serviciu a fost testat și pus în funcțiune izolat.
+- **Regresii ușor detectabile:** Erorile sunt localizate imediat la granița Bounded Context-ului respectiv.
+- **Migrare graduală și reversibilă:** În caz de incident, traficul poate fi redirecționat către monolit.
+- **Testabilitate independentă:** Dezvoltarea și testarea fiecărui modul nu blochează restul echipei.
+- **Disponibilitate continuă:** Sistemul legacy rămâne disponibil pe durata întregului ciclu de migrare.
+
+### Trade-Offs (Compromisuri)
+- **Duplicare temporară de cod:** Anumite entități și DTO-uri coexistă în monolit și în microservicii.
+- **Coexistența a două paradigme de securitate:** Monolitul funcționează cu sesiune DB și cookie-uri CSRF, iar microserviciile cu token-uri JWT RS256 stateless.
+- **Complexitate operațională temporară:** Necesitatea rulării concurente a instanțelor pe durata testelor live.
+- **Sincronizarea contractelor API:** Menținerea riguroasă a compatibilității schemelor JSON și a codurilor HTTP.
+

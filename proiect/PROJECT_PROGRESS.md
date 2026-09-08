@@ -1,8 +1,8 @@
 # PROJECT_PROGRESS
 
-Actualizat: 2026-09-08. Etapa curentă: **Faza 7 – Resilience4j & Fault Tolerance finalizată cu succes**. Monolitul rămâne 100% stabil și funcțional (tag git: `monolith-stable`, 219 teste Java PASS).
+Actualizat: 2026-09-08. Etapa curentă: **Faza 8 – Design Pattern: Strangler Fig finalizată cu succes**. Monolitul rămâne 100% stabil și funcțional (tag git: `monolith-stable`, 219 teste Java PASS).
 Total teste Java active în întreg repo: **391 teste PASS** (Monolit: 219, Eureka Server: 1, user-service: 18, account-service: 66, transaction-service: 74, gateway-service: 13). Toate modulele depășesc pragul de 70% acoperire JaCoCo (Gateway: 94.90%, User: 77.95%, Transaction: 77.08%, Monolit: 77.16%, Account: 75.46%).
-Sistemul distribuit include toleranță la erori prin Resilience4j (Circuit Breaker, Retry automat doar pe operațiuni sigure de citire, Fallback controlat cu HTTP 503 și propagare de Correlation ID, izolare strictă a tranzacțiilor financiare fără retry automat la scriere). Toate cele 3 microservicii rulează scalat orizontal în regim multi-instanță (minim 2 replici active per microserviciu, 6 instanțe de business înregistrate dinamic în Eureka Server 8761), iar întreg traficul extern trece exclusiv prin **`gateway-service` (Port 8090)**.
+Proiectul demonstrează implementarea completă a **Strangler Fig Pattern** prin migrarea incrementală a domeniilor de business din monolit în microservicii independente (`user-service`, `account-service`, `transaction-service`), dirijate transparent prin `gateway-service` (Strangler Facade pe Port 8090) și protejate prin Resilience4j. Monolitul original este menținut funcțional și testabil.
 
 ## Checklist
 
@@ -25,6 +25,7 @@ Sistemul distribuit include toleranță la erori prin Resilience4j (Circuit Brea
 - [x] Load balancing (multi-instance) (Spring Cloud LoadBalancer RoundRobin, 6 replici active, persistență chei RSA partajate, failover verificat)
 - [x] Resilience4j (Circuit Breaker, Retry safe-reads, Fallbacks 503, Fail-Fast <50ms, Invariant Siguranță Financiară)
 - [x] Actuator (integrat pe toate serviciile: health, info, circuitbreakers, circuitbreakerevents, retries, retryevents)
+- [x] Design Pattern — Strangler Fig (Strangler Fig Pattern implemented and demonstrated through incremental migration from the stable monolith to three independently deployable business microservices.)
 - [ ] Prometheus
 - [ ] Grafana
 - [ ] Redis
@@ -443,5 +444,81 @@ S-a implementat și verificat complet cerința de **Fault Tolerance / Rezilienț
   - **Pasul 6 (Regresie E2E după revenire):**
     - Interogare conturi și categorii prin Gateway: HTTP 200 OK.
   - Oprire curată a tuturor proceselor.
+
+---
+
+## Faza 8 – Design Pattern: Strangler Fig (finalizată)
+
+Data finalizării: 2026-09-08.
+Auditul de arhitectură confirmă implementarea formală și completă a **Strangler Fig Pattern** (Martin Fowler) prin migrarea incrementală a aplicației din monolit în microservicii.
+
+> "Strangler Fig Pattern implemented and demonstrated through incremental migration from the stable monolith to three independently deployable business microservices."
+
+### 1. Problema și Justificarea
+- **Problema:** Aplicația a debutat ca un monolit cuprinzător (12 entități JPA, 219 teste automate, fluxuri financiare integrate). O abordare de tip "big-bang rewrite" (rescrierea dintr-o dată a întregului sistem) ar fi prezentat riscuri operaționale inacceptabile: perioade prelungite de instabilitate, regresii greu de izolat, imposibilitatea validării parțiale și downtime în producție.
+- **Soluția Strangler Fig:** Păstrarea monolitului intact și stabil ca plasă de siguranță (`monolith-stable`), în timp ce domeniile de business (Bounded Contexts) sunt extrase incremental în microservicii independente. La final, un API Gateway (`gateway-service` :8090) preia rolul de Strangler Facade, dirijând tot traficul clienților către noile servicii, permițând retragerea ulterioară a monolitului fără întreruperea funcționării.
+
+### 2. Etapele de Migrare Incrementală și Dovezi Git
+1. **Baseline Stabil:** Commit `76647b8` (tag git `monolith-stable`) — Monolitul original este stabil, complet funcțional și acoperit de 219 teste Java PASS.
+2. **Pasul 1 (User Domain):** Commit-urile `a04782a` & `e1eb02a` — Extragerea `user-service` (:8081/:8181) cu propria bază de date (`user_db`), autentificare JWT RS256 și endpoint public JWKS. Monolitul rămâne neatins.
+3. **Pasul 2 (Account Domain):** Commit-urile `26603d1`, `8d48491`, `c5252c6` — Extragerea `account-service` (:8082/:8182) cu `account_db`, OAuth2 Resource Server și clienți Feign către `user-service`.
+4. **Pasul 3 (Transaction Domain):** Commit `ba2a01e` — Extragerea `transaction-service` (:8083/:8183) cu `transaction_db`, OAuth2 Resource Server și clienți Feign către `account-service`.
+5. **Pasul 4 & 5 (Discovery & Scalabilitate):** Commit-urile `d5df06e` & `ca9689d` — Integrarea Eureka Server (:8761) și Spring Cloud LoadBalancer pentru replicare multi-instanță.
+6. **Pasul 6 (Strangler Facade):** Commit `b6e72a3` — Implementarea `gateway-service` (:8090) pe post de Strangler Facade: tot traficul extern este rutat exclusiv către noile microservicii (`lb://`), ascunzând detaliile interne de clienți.
+7. **Pasul 7 (Reziliență Distribuită):** Commit `3ff8a8c` — Integrare Resilience4j Circuit Breaker & Retry pe relațiile inter-servicii.
+
+### 3. Diagrame Arhitecturale de Migrare
+
+```
+FAZA INIȚIALĂ (Baseline Monolit)
+
+Frontend:5173
+      |
+      v
+  Monolith (port 8080)
+      |
+      v
+  Monolith DB (H2/MySQL)
+
+
+MIGRARE INCREMENTALĂ (Strangler Fig Facade)
+
+                      +-----------------> user-service (:8081/:8181) [user_db]
+                      |
+Frontend -> Gateway --+-----------------> account-service (:8082/:8182) [account_db]
+            (:8090)   |
+                      +-----------------> transaction-service (:8083/:8183) [tx_db]
+
+Monolith (tag: monolith-stable, 219 teste PASS)
+   |
+   +--> Păstrat ca referință stabilă și validare de paritate funcțională
+
+
+ȚINTĂ FINALĂ (Decomisionare Monolit)
+
+Frontend:5173
+      |
+      v
+  Gateway (:8090)
+      +---> user-service (independent)
+      +---> account-service (independent)
+      +---> transaction-service (independent)
+
+  (Monolitul legacy poate fi arhivat/decomisionat fără impact asupra clienților)
+```
+
+### 4. Trade-Offs Analizate
+- **Avantaje:**
+  - Risc operațional redus masiv prin pași mici și reversibili.
+  - Regresii ușor detectabile la nivelul fiecărui modul (regresia generală a rămas 100% verde pe tot parcursul).
+  - Fiecare microserviciu este deployabil și scalabil independent.
+  - Bounded contexts delimitate strict conform principiilor Domain-Driven Design (DDD).
+  - Rollback imediat în caz de anomalie (monolitul a rămas complet funcțional).
+- **Dezavantaje / Costuri:**
+  - Duplicare temporară de cod și modele de date între monolit și noile servicii pe durata migrației.
+  - Coexistența a două paradigme arhitecturale (monolit monolitic cu sesiune DB vs microservicii stateless cu JWT).
+  - Necesitatea sincronizării contractelor de date (DTO-uri, formate JSON) între monolit și noile servicii.
+  - Complexitate operațională crescută pe durata migrației (rulare concurentă de multiple procese).
+
 
 
