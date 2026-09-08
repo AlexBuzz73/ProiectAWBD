@@ -121,7 +121,7 @@ class AccountClientTest {
     @Test
     @DisplayName("debit throws IllegalArgumentException on failure")
     void testDebitFailure() {
-        when(accountFeignClient.debit(eq(1L), any(DebitRequestDTO.class))).thenThrow(new RuntimeException("Balance too low"));
+        when(accountFeignClient.debit(eq(1L), any(DebitRequestDTO.class))).thenThrow(new IllegalArgumentException("Balance too low"));
 
         assertThatThrownBy(() -> accountClient.debit(1L, new BigDecimal("99999.00"), "OP-FAIL"))
                 .isInstanceOf(IllegalArgumentException.class);

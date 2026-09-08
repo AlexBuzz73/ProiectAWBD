@@ -70,13 +70,13 @@ def main():
     account_dir = os.path.join(root, "account-service")
     run_cmd(account_dir, ".\\gradlew.bat test jacocoTestReport")
     t4, f4, e4 = parse_tests_and_coverage(account_dir, "Account Service")
-    assert f4 == 0 and e4 == 0 and t4 >= 44
+    assert f4 == 0 and e4 == 0 and t4 >= 66
     
     # 5. transaction-service
     tx_dir = os.path.join(root, "transaction-service")
     run_cmd(tx_dir, ".\\gradlew.bat test jacocoTestReport")
     t5, f5, e5 = parse_tests_and_coverage(tx_dir, "Transaction Service")
-    assert f5 == 0 and e5 == 0 and t5 >= 63
+    assert f5 == 0 and e5 == 0 and t5 >= 74
     
     # 6. gateway-service
     gateway_dir = os.path.join(root, "gateway-service")

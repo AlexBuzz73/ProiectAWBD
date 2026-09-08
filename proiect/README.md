@@ -400,14 +400,13 @@ Scenariile E2E acoperite:
 
 ## 8. Stadiul Proiectului și Pași Următori
 
-### Faza 6 – Spring Cloud API Gateway (Finalizată)
-- **API Gateway (`gateway-service` pe Port 8090):** Punct central de intrare pentru clienți și frontend bazat pe Spring Cloud Gateway WebFlux.
-- **Rutare Dinamică:** Rutare prin Eureka (`lb://user-service`, `lb://account-service`, `lb://transaction-service`) fără URL-uri hardcodate.
-- **Securitate Centralizată:** Reactive OAuth2 Resource Server validând JWT RS256 prin JWKS public; RBAC la nivel de gateway (`ROLE_ADMIN`).
-- **Rate Limiting In-Memory:** Algoritm Token Bucket thread-safe returnând HTTP 429 Too Many Requests cu antet `Retry-After`.
-- **Trasabilitate:** Generare și propagare automată `X-Correlation-Id` și marcare `X-Gateway-Service: gateway-service`.
-- **CORS Centralizat:** Gestionat pentru originea frontend Vite `http://localhost:5173`.
-- **Suită de teste:** 374 teste Java PASS pe întreg repository-ul, acoperire JaCoCo > 70% peste tot (Gateway: 94.90%).
+### Faza 7 – Resilience4j & Fault Tolerance (Finalizată)
+- **Circuit Breaker pe 2 Relații Inter-Servicii:** Implementat pe `account-service` -> `user-service` (`userServiceCircuitBreaker`) și `transaction-service` -> `account-service` (`accountServiceCircuitBreaker`).
+- **Fail-Fast sub 15ms:** Tranziție automată în starea `OPEN` după eșecuri consecutive (threshold 50% pe fereastră de 10 cereri), respingând cererile downstream instantaneu cu HTTP 503 și `correlationId`.
+- **Politica de Retry Controlată:** Retry automat (`max-attempts=3`, `wait-duration=500ms`) exclusiv pe operațiuni sigure și idempotente de citire.
+- **Invariant de Siguranță Financiară:** Operațiunile de debit, credit și plăți monetare **NU AU RETRY AUTOMAT**; sunt protejate strict de Circuit Breaker pentru a garanta că nicio plată nu este dedusă de două ori.
+- **Toleranță la Căderi Parțiale:** Load Balancer-ul rutează transparent traficul către replicile sănătoase, fără deschiderea inutilă a circuitului.
+- **Suită de teste:** **391 teste Java PASS** pe întreg repository-ul, acoperire JaCoCo > 70% pe toate modulele (Gateway: 94.90%, User: 77.95%, Transaction: 77.08%, Monolit: 77.16%, Account: 75.46%).
 
 ### Cerințe Mandatare Monolit Finalizate
 - [x] Arhitectură pe straturi: Controller, Service, Repository, DTO, Mapper, Entity.
@@ -424,43 +423,43 @@ Scenariile E2E acoperite:
 ### Microservicii Extrase și Funcționale
 - [x] **`eureka-server` (Port 8761)**: Service registry Netflix Eureka, heartbeat 2s, client load balancer integrat.
 - [x] **`user-service` (Port 8081 & 8181)**: Deține `user_db` (`users`, `individuals`), autentificare JWT RS256, hashing BCrypt, endpoint public JWKS (`/.well-known/jwks.json`), chei RSA persistate partajate, 18 teste PASS, ~78% JaCoCo.
-- [x] **`account-service` (Port 8082 & 8182)**: Deține `account_db` (`accounts`, `account_access`, `cards`, `bank_limits`, `user_limits`), OAuth2 Resource Server RS256, model monetar `BigDecimal`, versionare optimistă `@Version`, client Feign către user-service, 58 teste PASS, ~73% JaCoCo.
-- [x] **`transaction-service` (Port 8083 & 8183)**: Deține `transaction_db` (`transactions`, `scheduled_payments`, `exchange_rates`, `categories`, `tags`, `transaction_tags`), OAuth2 Resource Server RS256, plăți standard și urgente, transferuri proprii, schimb valutar BNR cu fallback, plăți programate, client Feign către account-service, 65 teste PASS, ~76% JaCoCo.
+- [x] **`account-service` (Port 8082 & 8182)**: Deține `account_db` (`accounts`, `account_access`, `cards`, `bank_limits`, `user_limits`), OAuth2 Resource Server RS256, model monetar `BigDecimal`, versionare optimistă `@Version`, client Feign către user-service cu Resilience4j CB + Retry, 66 teste PASS, ~75% JaCoCo.
+- [x] **`transaction-service` (Port 8083 & 8183)**: Deține `transaction_db` (`transactions`, `scheduled_payments`, `exchange_rates`, `categories`, `tags`, `transaction_tags`), OAuth2 Resource Server RS256, plăți standard și urgente, transferuri proprii, schimb valutar BNR cu fallback, plăți programate, client Feign către account-service cu Resilience4j CB + Retry (fără retry la debit/credit), 74 teste PASS, ~77% JaCoCo.
 - [x] **`gateway-service` (Port 8090)**: Spring Cloud Gateway reactiv pe Netty, Resource Server OAuth2, rate limiting, CORS centralizat, propagare `X-Correlation-Id`, 13 teste PASS, ~95% JaCoCo.
-- [x] **Testare Live Multi-Serviciu E2E**: Verificare completă cu 8 procese concurente (`verify_phase6_gateway.py`).
+- [x] **Resilience4j Fault Tolerance**: Protecție bidirecțională, failover pe replici, fail-fast (<15ms) și fallbacks controlate HTTP 503.
+- [x] **Testare Live Multi-Serviciu E2E**: Verificare completă demonstrată prin scripturile dedicate (`verify_phase7_resilience.py`).
 - [x] **Regresie Monolit**: 219 teste monolit PASS sub tag-ul git `monolith-stable`.
 
 ### Pași Următori
-1. Reziliență cu Resilience4j (Circuit Breaker, Retry, Bulkhead).
-2. Tranzacții distribuite cu Saga Orchestrator și compensare automată.
-3. Observabilitate distribuită: Spring Boot Actuator, Prometheus și Grafana.
-4. Cache distribuit cu Redis.
-5. Configurație centralizată cu Spring Cloud Config Server.
-6. Containerizare completă cu Docker și orchestrare cu Docker Compose.
+1. Tranzacții distribuite cu Saga Orchestrator și compensare automată.
+2. Observabilitate distribuită: Spring Boot Actuator, Prometheus și Grafana.
+3. Cache distribuit cu Redis.
+4. Configurație centralizată cu Spring Cloud Config Server.
+5. Containerizare completă cu Docker și orchestrare cu Docker Compose.
 
 ---
 
-## 9. Microservicii, Service Discovery, Load Balancing și API Gateway
+## 9. Microservicii, Service Discovery, Load Balancing, Gateway și Resilience4j
 
-Aplicația include o arhitectură de microservicii distribuită, scalabilă orizontal prin **Eureka Server**, **Spring Cloud LoadBalancer** și accesibilă prin **Spring Cloud Gateway**:
+Aplicația include o arhitectură de microservicii distribuită, rezilientă la defecte și scalabilă orizontal:
 
 1. **`eureka-server` (Port 8761):**
    - Registry centralizat pentru descoperirea automată a instanțelor.
 2. **`gateway-service` (Port 8090):**
-   - API Gateway reactiv: punct unic de intrare (`http://localhost:8090/api`), validare JWT via JWKS, rate limiting per IP, CORS.
+   - API Gateway reactiv: punct unic de intrare (`http://localhost:8090/api`), validare JWT via JWKS, rate limiting per IP, CORS, propagare correlation ID.
 3. **`user-service` (Replicat: Port 8081 & 8181):**
    - Gestionare utilizatori, emitere JWT RS256, JWKS public, chei partajate.
 4. **`account-service` (Replicat: Port 8082 & 8182):**
-   - OAuth2 Resource Server, gestiune conturi, carduri, limite, client Feign către user-service cu RoundRobinLoadBalancer.
+   - OAuth2 Resource Server, gestiune conturi, carduri, limite, client Feign către user-service cu RoundRobinLoadBalancer și Resilience4j CircuitBreaker + Retry.
 5. **`transaction-service` (Replicat: Port 8083 & 8183):**
-   - OAuth2 Resource Server, transferuri, plăți, client Feign către account-service cu RoundRobinLoadBalancer.
+   - OAuth2 Resource Server, transferuri, plăți, client Feign către account-service cu RoundRobinLoadBalancer și Resilience4j CircuitBreaker + Retry (operațiunile monetare protejate strict fără retry).
 
 ### Rulare și Verificare Live
-Pentru a porni și verifica suita completă de 8 procese (Eureka + 6 replici + Gateway) demonstrând rutarea dinamică, rate limiting (HTTP 429), load balancing prin gateway și failover automat:
+Pentru a porni și verifica scenariile complete de toleranță la erori și reziliență (cădere totală user-service, cădere totală account-service cu audit de siguranță financiară, cădere parțială de replici, fail-fast sub 15ms și recuperare automată):
 ```powershell
-python verify_phase6_gateway.py
+python verify_phase7_resilience.py
 ```
-Pentru rularea suitei complete de regresie (374 teste Java pe toate cele 6 module + frontend):
+Pentru rularea suitei complete de regresie (391 teste Java pe toate cele 6 module + frontend):
 ```powershell
 python run_full_regression.py
 ```

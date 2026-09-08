@@ -20,7 +20,7 @@ public class AccountMapper {
         Account account = new Account();
         account.setAlias(dto.getAlias());
         account.setCurrency(dto.getCurrency() != null ? dto.getCurrency().toUpperCase() : null);
-        account.setBalance(BigDecimal.valueOf(dto.getInitialAmount()));
+        account.setBalance(BigDecimal.valueOf(dto.getInitialAmount() != null ? dto.getInitialAmount() : 0.0));
         account.setStatus("ACTIVE");
         return account;
     }

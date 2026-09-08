@@ -79,11 +79,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
-    @ExceptionHandler(ServiceUnavailableException.class)
-    public ResponseEntity<Map<String, String>> handleServiceUnavailable(ServiceUnavailableException ex) {
-        log.error("Downstream service unavailable: {}", ex.getMessage());
-        Map<String, String> body = new HashMap<>();
-        body.put("error", ex.getMessage() != null && !ex.getMessage().isBlank() ? ex.getMessage() : "Serviciul este temporar indisponibil");
+    @ExceptionHandler({
+            ServiceUnavailableException.class,
+            io.github.resilience4j.circuitbreaker.CallNotPermittedException.class
+    })
+    public ResponseEntity<Map<String, Object>> handleServiceUnavailable(Exception ex, jakarta.servlet.http.HttpServletRequest request) {
+        log.error("Downstream service unavailable on transaction-service: {}", ex.getMessage());
+        String correlationId = request != null ? request.getHeader("X-Correlation-Id") : null;
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = java.util.UUID.randomUUID().toString();
+        }
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("error", "Service Unavailable");
+        body.put("message", ex instanceof ServiceUnavailableException && ex.getMessage() != null && !ex.getMessage().isBlank()
+                ? ex.getMessage()
+                : "Serviciul de conturi nu este disponibil momentan.");
+        body.put("status", HttpStatus.SERVICE_UNAVAILABLE.value());
+        body.put("correlationId", correlationId);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
     }
 

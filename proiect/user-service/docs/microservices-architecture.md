@@ -130,10 +130,10 @@ flowchart TD
 | **Monolit (`proiect`)** | 219 PASS | 77.16% | Baseline stabil monolit, securitate sesiune, IDOR, Remember Me, CSRF |
 | **`eureka-server`** | 1 PASS | 37.50% | Context load, Service Registry pe portul 8761 |
 | **`user-service`** | 18 PASS | 77.95% | Emitere JWT RS256, egalitate JWKS între replici, verificare semnătură cross-instanță |
-| **`account-service`** | 58 PASS | 73.44% | Resource Server OAuth2, RoundRobinLoadBalancer test, InternalAccountController, InstanceIdFilter |
-| **`transaction-service`** | 65 PASS | 75.67% | Resource Server OAuth2, transferuri inter-conturi, client Feign către conturi, LoadBalancer test |
+| **`account-service`** | 66 PASS | 75.46% | Resource Server OAuth2, RoundRobinLoadBalancer, Resilience4j CB + Retry, InternalAccountController |
+| **`transaction-service`** | 74 PASS | 77.08% | Resource Server OAuth2, transferuri inter-conturi, client Feign către conturi, Resilience4j CB + Retry |
 | **`gateway-service`** | 13 PASS | 94.90% | API Gateway reactiv, OAuth2 Resource Server, Rate Limiting (429), CORS, Correlation ID |
-| **TOTAL** | **374 PASS** | **> 70% per modul** | **Zero eșecuri, zero erori** |
+| **TOTAL** | **391 PASS** | **> 70% per modul** | **Zero eșecuri, zero erori** |
 
 ---
 
@@ -181,6 +181,50 @@ Modulul `gateway-service` oferă o poartă unică de acces pentru clienți și f
 5. **CORS Centralizat (`CorsConfig`):**
    - Configurează antetele CORS pentru originea frontend Vite `http://localhost:5173` cu suport complet pentru credențiale și antete expuse.
 
-Scriptul de verificare live completă cu 8 procese: `verify_phase6_gateway.py`.
-Scriptul de regresie completă a tuturor modulelor: `run_full_regression.py`.
+---
+
+## 5. Reziliență și Toleranță la Erori (Resilience4j)
+
+Pentru a preveni propagarea în cascadă a erorilor și blocarea firelor de execuție, s-a implementat protecția completă prin **Resilience4j** pe ambele relații inter-servicii:
+- **Relația A:** `account-service` -> `user-service` (`userServiceCircuitBreaker` + `userServiceRetry`)
+- **Relația B:** `transaction-service` -> `account-service` (`accountServiceCircuitBreaker` + `accountServiceRetry`)
+
+### Mașina de Stări a Circuit Breaker-ului
+
+```
+       +---------+
+       | CLOSED  | <------------------------------------+
+       +----+----+                                      |
+            |                                           |
+            | (5 eșecuri consecutive >= 50% threshold)   | (Toate apelurile de probă
+            v                                           |  reușesc)
+       +----+----+                                      |
+       |  OPEN   |                                      |
+       +----+----+                                      |
+            |                                           |
+            | (Trecere după waitDurationInOpenState=10s)|
+            v                                           |
+       +----+----+                                      |
+       |HALF_OPEN+--------------------------------------+
+       +----+----+
+            |
+            | (Apel de probă eșuat)
+            +---------------------> [ Revine în OPEN ]
+```
+
+### Configurații și Garanții de Siguranță
+1. **Aspect Order Configurat:** `circuitBreakerAspectOrder=1` (outer) și `retryAspectOrder=2` (inner). În starea `OPEN`, apelul eșuează instantaneu (Fail-Fast < 15ms) fără a rula Retry.
+2. **Retry pe Citiri Idempotente:** `max-attempts=3`, `wait-duration=500ms` aplicat strict pe căutări de utilizator, conturi și verificări de drepturi.
+3. **INVARIANT DE SIGURANȚĂ FINANCIARĂ:**
+   - Metodele `debit()`, `credit()` și inițierea de plăți **NU AU RETRY AUTOMAT**.
+   - Se garantează că niciun debit nu este executat de două ori din cauza unui timeout de rețea.
+4. **Răspuns Fallback Standardizat HTTP 503:**
+   - Când serviciul aval este căzut sau circuitul este `OPEN`, se returnează imediat un răspuns standardizat JSON cu status HTTP 503 și `correlationId`.
+   - Gateway-ul (8090) transmite răspunsul 503 către client fără alterare.
+5. **Actuator Monitoring:**
+   - Expunere `/actuator/circuitbreakers`, `/actuator/circuitbreakerevents`, `/actuator/retries`, `/actuator/retryevents`.
+
+Scriptul de verificare live a rezilienței cu 7 procese: `python verify_phase7_resilience.py`.
+Scriptul de regresie completă a tuturor modulelor: `python run_full_regression.py`.
+
 

@@ -56,11 +56,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    @ExceptionHandler(ServiceUnavailableException.class)
-    public ResponseEntity<Map<String, String>> handleServiceUnavailable(ServiceUnavailableException ex) {
+    @ExceptionHandler({
+            ServiceUnavailableException.class,
+            io.github.resilience4j.circuitbreaker.CallNotPermittedException.class
+    })
+    public ResponseEntity<Map<String, Object>> handleServiceUnavailable(Exception ex, jakarta.servlet.http.HttpServletRequest request) {
         log.error("Service unavailable on account-service: {}", ex.getMessage());
-        Map<String, String> body = new HashMap<>();
-        body.put("error", ex.getMessage());
+        String correlationId = request != null ? request.getHeader("X-Correlation-Id") : null;
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = java.util.UUID.randomUUID().toString();
+        }
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("error", "Service Unavailable");
+        body.put("message", ex instanceof ServiceUnavailableException && ex.getMessage() != null && !ex.getMessage().isBlank()
+                ? ex.getMessage()
+                : "Serviciul de utilizatori nu este disponibil momentan.");
+        body.put("status", HttpStatus.SERVICE_UNAVAILABLE.value());
+        body.put("correlationId", correlationId);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
     }
 

@@ -1,8 +1,8 @@
 # PROJECT_PROGRESS
 
-Actualizat: 2026-09-08. Etapa curentă: **Faza 6 – API Gateway finalizată cu succes**. Monolitul rămâne 100% stabil și funcțional (tag git: `monolith-stable`, 219 teste Java PASS).
-Total teste Java active în întreg repo: **374 teste PASS** (Monolit: 219, Eureka Server: 1, user-service: 18, account-service: 58, transaction-service: 65, gateway-service: 13). Toate modulele depășesc pragul de 70% acoperire JaCoCo (Gateway: 94.90%).
-Toate cele 3 microservicii rulează scalat orizontal în regim multi-instanță (minim 2 replici active per microserviciu, 6 instanțe de business înregistrate dinamic în Eureka Server 8761), iar întreg traficul extern trece exclusiv prin **`gateway-service` (Port 8090)**. API Gateway oferă un punct unic de intrare pentru clienți și frontend, rutare dinamică bazată pe Service Discovery (`lb://`), validare distribuită a token-urilor JWT RS256 via JWKS, RBAC la nivel de gateway (`ROLE_ADMIN`), rate limiting in-memory per IP (HTTP 429), CORS centralizat și propagare automată a `X-Correlation-Id`.
+Actualizat: 2026-09-08. Etapa curentă: **Faza 7 – Resilience4j & Fault Tolerance finalizată cu succes**. Monolitul rămâne 100% stabil și funcțional (tag git: `monolith-stable`, 219 teste Java PASS).
+Total teste Java active în întreg repo: **391 teste PASS** (Monolit: 219, Eureka Server: 1, user-service: 18, account-service: 66, transaction-service: 74, gateway-service: 13). Toate modulele depășesc pragul de 70% acoperire JaCoCo (Gateway: 94.90%, User: 77.95%, Transaction: 77.08%, Monolit: 77.16%, Account: 75.46%).
+Sistemul distribuit include toleranță la erori prin Resilience4j (Circuit Breaker, Retry automat doar pe operațiuni sigure de citire, Fallback controlat cu HTTP 503 și propagare de Correlation ID, izolare strictă a tranzacțiilor financiare fără retry automat la scriere). Toate cele 3 microservicii rulează scalat orizontal în regim multi-instanță (minim 2 replici active per microserviciu, 6 instanțe de business înregistrate dinamic în Eureka Server 8761), iar întreg traficul extern trece exclusiv prin **`gateway-service` (Port 8090)**.
 
 ## Checklist
 
@@ -23,8 +23,8 @@ Toate cele 3 microservicii rulează scalat orizontal în regim multi-instanță 
 - [x] JWT/distributed security (emitere RS256 in user-service, validare JWKS in account-service & transaction-service, propagare automata Bearer token prin Feign RequestInterceptor)
 - [x] Gateway
 - [x] Load balancing (multi-instance) (Spring Cloud LoadBalancer RoundRobin, 6 replici active, persistență chei RSA partajate, failover verificat)
-- [ ] Resilience4j
-- [ ] Actuator (integrat pe toate serviciile; urmeaza metrici avansate Prometheus)
+- [x] Resilience4j (Circuit Breaker, Retry safe-reads, Fallbacks 503, Fail-Fast <50ms, Invariant Siguranță Financiară)
+- [x] Actuator (integrat pe toate serviciile: health, info, circuitbreakers, circuitbreakerevents, retries, retryevents)
 - [ ] Prometheus
 - [ ] Grafana
 - [ ] Redis
@@ -351,4 +351,97 @@ S-a implementat și verificat complet cerința de **API Gateway** din barem folo
   - **Propagare Correlation ID:** Clientul trimite `X-Correlation-Id: custom-client-trace-998877`; valoarea este păstrată și returnată în răspunsul final.
   - **Rutare Transaction Service:** `GET http://localhost:8090/api/categories` rutat cu succes (HTTP 200).
   - Oprire curată a tuturor celor 8 procese.
+
+---
+
+## Faza 7 – Resilience4j & Fault Tolerance (finalizată)
+
+Data finalizării: 2026-09-08.
+S-a implementat și verificat complet cerința de **Fault Tolerance / Reziliență** din barem folosind **Resilience4j** (`spring-cloud-starter-circuitbreaker-resilience4j:5.0.3` / Resilience4j 2.3.0) și `spring-boot-starter-aspectj:4.0.5`, pe ambele relații critice de comunicare inter-servicii:
+1. **Relația A:** `account-service` -> `user-service` (`UserFeignClient` / `UserClient`)
+2. **Relația B:** `transaction-service` -> `account-service` (`AccountFeignClient` / `AccountClient`)
+
+### 1. Arhitectură și Decizii Tehnice
+
+1. **Aspect Order Deterministic:**
+   - S-a configurat explicit ordinea aspectelor Spring AOP:
+     - `resilience4j.circuitbreaker.circuitBreakerAspectOrder=1` (outer advice)
+     - `resilience4j.retry.retryAspectOrder=2` (inner advice)
+   - Când Circuit Breaker-ul este `OPEN`, apelurile sunt interceptate imediat de Circuit Breaker și executează fallback-ul fără ca Retry să mai intervină. Fail-fast se execută instantaneu (<15ms).
+   - Când Circuit Breaker-ul este `CLOSED`, apelul este permis către Retry; în caz de eroare de rețea tranzitorie, Retry reîncearcă până la 3 ori înainte ca eroarea să fie înregistrată în sliding window-ul Circuit Breaker-ului.
+
+2. **Configurație Circuit Breaker:**
+   - Instanțe configurate: `userServiceCircuitBreaker` (în `account-service`) și `accountServiceCircuitBreaker` (în `transaction-service`).
+   - `sliding-window-type=COUNT_BASED`
+   - `sliding-window-size=10`
+   - `minimum-number-of-calls=5`
+   - `failure-rate-threshold=50%`
+   - `wait-duration-in-open-state=10s`
+   - `permitted-number-of-calls-in-half-open-state=2`
+   - `automatic-transition-from-open-to-half-open-enabled=true`
+   - Listeneri de evenimente configurate în `ResilienceConfig`:
+     - Logare tranziții de stare: `[CIRCUIT-BREAKER] [{name}] State transition: {from} -> {to}`
+     - Logare apeluri respinse: `[CIRCUIT-BREAKER] [{name}] Call NOT permitted (circuit is OPEN)`
+
+3. **Politică de Retry & Invariant de Siguranță Financiară:**
+   - **Operațiuni sigure de citire (Idempotente):** protejate cu `@Retry(name = "...")` + `@CircuitBreaker`:
+     - `findUserById`, `findUserByEmail`, `getInstanceInfo` în `UserClient`
+     - `getAccount`, `getAccountByIban`, `checkAccess`, `getUserLimits`, `getUserAccounts`, `getInstanceInfo` în `AccountClient`
+     - Configurație Retry: `max-attempts=3`, `wait-duration=500ms`.
+   - **MUTĂRI FINANCIARE (CRITIC):**
+     - Metodele de mutație monetară (`debit`, `credit`, inițiere de plăți, transferuri) sunt protejate **EXCLUSIV de `@CircuitBreaker`** și **NU AU NICIODATĂ `@Retry`**.
+     - Se elimină riscul de debite multiple accidentale în caz de timeout de rețea.
+     - Dacă contul sau serviciul aval este indisponibil, tranzacția este abortată curat (`FAILED`), iar apelantul primește HTTP 503 fără operațiuni parțiale.
+
+4. **Tratare Fallback & Contract Standardizat HTTP 503:**
+   - Metodele de fallback re-aruncă excepțiile de business (`AccessDeniedException`, `IllegalArgumentException`, `ResourceNotFoundException`) pentru a păstra codurile corecte (403, 400, 404).
+   - Erorile de infrastructură (`CallNotPermittedException`, timeout-uri, conexiuni refuzate) aruncă `ServiceUnavailableException`.
+   - `GlobalExceptionHandler` tratează `ServiceUnavailableException` și `CallNotPermittedException`, injectând `X-Correlation-Id` și returnând HTTP 503:
+     ```json
+     {
+       "error": "Service Unavailable",
+       "message": "Serviciul de conturi nu este disponibil momentan.",
+       "status": 503,
+       "correlationId": "corr-fail-fast-tx"
+     }
+     ```
+   - API Gateway (8090) transmite răspunsul 503 transparent către client, fără a-l masca în 500, păstrând antetele de trasabilitate.
+
+5. **Expunere Actuator:**
+   - Endpoint-uri expuse pe ambele microservicii: `/actuator/circuitbreakers`, `/actuator/circuitbreakerevents`, `/actuator/retries`, `/actuator/retryevents`.
+
+### 2. Rezultate Teste și Verificare Live
+
+- **Suită de Teste Automate (391 teste Java PASS, JaCoCo > 70% peste tot):**
+  - **Monolit:** 219 teste PASS (JaCoCo: 77.16%)
+  - **`eureka-server`:** 1 test PASS
+  - **`user-service`:** 18 teste PASS (JaCoCo: 77.95%)
+  - **`account-service`:** **66 teste PASS, 0 failures, 0 skipped** (**JaCoCo: 75.46%**) — include 10 teste dedicate în `UserServiceResilienceTest`.
+  - **`transaction-service`:** **74 teste PASS, 0 failures, 0 skipped** (**JaCoCo: 77.08%**) — include 11 teste dedicate în `AccountServiceResilienceTest`.
+  - **`gateway-service`:** 13 teste PASS (JaCoCo: 94.90%)
+  - **Frontend:** 6 teste PASS, ESLint curat, Vite build cu succes.
+- **Verificare Live Multi-Service (`verify_phase7_resilience.py`):**
+  - Pornire concurentă a 7 instanțe: Eureka (8761), 2x User (8081, 8181), 2x Account (8082, 8182), 2x Transaction (8083, 8183), Gateway (8090).
+  - **Pasul 1:** Stare inițială Actuator confirmată: `userServiceCircuitBreaker: CLOSED`, `accountServiceCircuitBreaker: CLOSED`.
+  - **Pasul 2:** Flux de bază sănătos prin Gateway: Înregistrare, Login JWT, Creare cont 500 RON, interogări Feign între servicii cu status 200.
+  - **Pasul 3 (Scenariul A — Cădere Totală `user-service`):**
+    - Oprirea ambelor replici `user-service` (:8081 și :8181).
+    - 6 apeluri eșuate declanșate din `account-service` -> `userServiceCircuitBreaker` a trecut în `OPEN`.
+    - Apelul ulterior fail-fast a returnat HTTP 503 în doar **7ms** (fără blocaje sau apeluri inutile).
+    - Repornire `user-service:8081`, expirare `wait-duration` (10s) -> trecere în `HALF_OPEN`.
+    - Apelurile de probă au reușit -> Circuit Breaker a revenit în **`CLOSED`**.
+  - **Pasul 4 (Scenariul B — Cădere Totală `account-service` & Siguranță Financiară):**
+    - Oprirea ambelor replici `account-service` (:8082 și :8182).
+    - 6 apeluri eșuate din `transaction-service` -> `accountServiceCircuitBreaker` a trecut în `OPEN`.
+    - Apel fail-fast verificat în **15ms** cu HTTP 503.
+    - **Audit siguranță financiară:** Tentativa de inițiere plată prin Gateway a fost respinsă imediat cu HTTP 503, prevenind orice execuție parțială sau corupere a soldurilor.
+    - Repornire `account-service:8082`, apelurile de probă au reușit -> revenire în **`CLOSED`**.
+  - **Pasul 5 (Scenariul C — Cădere Parțială Replică):**
+    - Oprirea unei singure replici (`account-service:8082`, lăsând activă replica :8182).
+    - Trimitere 8 cereri din `transaction-service`: Load Balancer-ul a rutat cererile către replica rămasă (7/8 cereri reușite imediat).
+    - Circuit Breaker a rămas **`CLOSED`** (nu s-a deschis inutil pe cădere parțială).
+  - **Pasul 6 (Regresie E2E după revenire):**
+    - Interogare conturi și categorii prin Gateway: HTTP 200 OK.
+  - Oprire curată a tuturor proceselor.
+
 

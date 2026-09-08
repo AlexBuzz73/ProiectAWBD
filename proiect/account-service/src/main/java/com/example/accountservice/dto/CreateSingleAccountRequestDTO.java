@@ -22,5 +22,5 @@ public class CreateSingleAccountRequestDTO {
 
     private String externalIban;
 
-    private double initialAmount = 0.0;
+    private Double initialAmount = 0.0;
 }
