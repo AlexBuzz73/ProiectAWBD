@@ -95,6 +95,16 @@ class SecurityAndRoutingTest {
     }
 
     @Test
+    @DisplayName("Public CSRF endpoint returns 200 OK without token")
+    void testCsrfEndpointAllowed() {
+        webClient.get().uri("/api/csrf")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.token").isEqualTo("microservices-stateless-jwt");
+    }
+
+    @Test
     @DisplayName("CORS preflight request succeeds with appropriate CORS headers")
     void testCorsPreflight() {
         webClient.options().uri("/api/accounts")
@@ -117,6 +127,9 @@ class SecurityAndRoutingTest {
         assertThat(routeIds).contains(
                 "auth-login",
                 "auth-register",
+                "user-categories",
+                "user-cards",
+                "user-limits",
                 "admin-users",
                 "admin-accounts",
                 "user-service",

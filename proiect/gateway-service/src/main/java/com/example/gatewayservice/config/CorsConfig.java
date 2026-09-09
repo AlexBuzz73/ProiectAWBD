@@ -18,7 +18,7 @@ public class CorsConfig {
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:5173"));
+        config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of(
@@ -26,7 +26,8 @@ public class CorsConfig {
                 "X-Gateway-Service",
                 "X-Instance-Id",
                 "X-Service-Port",
-                "Retry-After"
+                "Retry-After",
+                "Authorization"
         ));
         config.setMaxAge(3600L);
 

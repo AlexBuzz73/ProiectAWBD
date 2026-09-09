@@ -17,11 +17,15 @@ import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
-import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collection;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -42,8 +46,9 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .pathMatchers("/actuator/**").permitAll()
-                        .pathMatchers("/api/auth/**").permitAll()
+                        .pathMatchers("/api/auth/**", "/api/auth").permitAll()
                         .pathMatchers("/.well-known/jwks.json").permitAll()
+                        .pathMatchers("/api/csrf", "/csrf", "/favicon.ico", "/error").permitAll()
                         .pathMatchers("/api/admin/**").hasRole("ADMIN")
                         .pathMatchers("/api/**").authenticated()
                         .anyExchange().authenticated()
@@ -88,13 +93,21 @@ public class SecurityConfig {
 
     @Bean
     public Converter<Jwt, Mono<AbstractAuthenticationToken>> reactiveJwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
-        grantedAuthoritiesConverter.setAuthoritiesClaimName("role");
-
-        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
-
-        return new ReactiveJwtAuthenticationConverterAdapter(jwtAuthenticationConverter);
+        return jwt -> {
+            Collection<GrantedAuthority> authorities = new ArrayList<>();
+            Object roleClaim = jwt.getClaims().get("role");
+            if (roleClaim instanceof String roleStr) {
+                String role = roleStr.startsWith("ROLE_") ? roleStr : "ROLE_" + roleStr;
+                authorities.add(new SimpleGrantedAuthority(role));
+            } else if (roleClaim instanceof Collection<?> roles) {
+                for (Object r : roles) {
+                    if (r != null) {
+                        String role = r.toString().startsWith("ROLE_") ? r.toString() : "ROLE_" + r.toString();
+                        authorities.add(new SimpleGrantedAuthority(role));
+                    }
+                }
+            }
+            return Mono.just(new JwtAuthenticationToken(jwt, authorities, jwt.getSubject()));
+        };
     }
 }
